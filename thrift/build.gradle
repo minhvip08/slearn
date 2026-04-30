@@ -32,7 +32,7 @@ sourceSets {
     main {
         java {
             srcDir 'src/main/java'
-            srcDir 'src/main/gen-java'
+            srcDir 'build/generated-sources/thrift'
         }
     }
 }
@@ -40,7 +40,7 @@ sourceSets {
 // Task to compile Thrift files (optional - only if thrift command available)
 task compileThrift {
     doLast {
-        File genDir = file('src/main/gen-java')
+        File genDir = file('build/generated-sources/thrift')
         if (!genDir.exists()) {
             genDir.mkdirs()
         }
@@ -59,7 +59,7 @@ task compileThrift {
         println "📦 Compiling Thrift files..."
         fileTree('thrift').include('*.thrift').each { file ->
             println "   Processing: ${file.name}"
-            def pb = new ProcessBuilder('thrift', '-gen', 'java', '-out', 'src/main/gen-java', file.absolutePath)
+            def pb = new ProcessBuilder('thrift', '-gen', 'java', '-out', 'build/generated-sources/thrift', file.absolutePath)
             pb.directory(project.projectDir)
             pb.inheritIO()
             def p = pb.start()
