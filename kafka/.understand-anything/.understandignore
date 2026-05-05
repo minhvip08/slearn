@@ -1,0 +1,39 @@
+# .understandignore — patterns for files/dirs to exclude from analysis
+# Syntax: same as .gitignore (globs, # comments, ! negation, trailing / for dirs)
+#
+# Built-in defaults (always excluded unless negated):
+#   node_modules/, .git/, dist/, build/, obj/, *.lock, *.min.js, etc.
+#
+
+# --- Gradle/Build artifacts ---
+.gradle/
+*classes
+*.class
+gradle/wrapper/*.jar
+gradlew.bat
+
+# --- Test source files (keeps production code only) ---
+**/src/test/
+**/src/generated-test/
+tests/
+test-common/
+trogdor/
+
+# --- Non-essential directories ---
+docs/
+examples/
+jmh-benchmarks/
+licenses/
+vagrant/
+committer-tools/
+
+# --- Generated code ---
+**/src/generated/
+
+# --- Other exclusions ---
+*.iml
+*.ipr
+*.iws
+*.swp
+*.class
+rat.out

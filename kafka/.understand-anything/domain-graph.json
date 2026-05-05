@@ -1,0 +1,1501 @@
+{
+  "version": "1.0.0",
+  "project": {
+    "name": "Apache Kafka",
+    "languages": ["Java", "Scala", "Bash", "Python"],
+    "frameworks": ["Gradle", "KRaft Consensus", "Streams", "Connect"],
+    "description": "Open-source distributed event streaming platform for high-performance data pipelines, streaming analytics, data integration, and mission-critical applications.",
+    "analyzedAt": "2026-05-05T00:00:00Z",
+    "gitCommitHash": ""
+  },
+  "nodes": [
+    {
+      "id": "domain:event-streaming",
+      "type": "domain",
+      "name": "Event Streaming & Pub-Sub",
+      "summary": "Core publish-subscribe messaging system enabling producers to publish events to topics and consumers to subscribe, handling topic partitioning, message ordering, and offset management.",
+      "tags": ["messaging", "publish-subscribe", "topics", "partitions", "core"],
+      "complexity": "complex",
+      "domainMeta": {
+        "entities": ["Topic", "Partition", "Message", "Offset", "ProducerRecord", "ConsumerRecord"],
+        "businessRules": [
+          "Messages in a partition are ordered sequentially",
+          "Consumers track offset to resume from last processed message",
+          "Multiple consumer groups can consume same topic independently",
+          "Topic deletion is irreversible without recovery"
+        ],
+        "crossDomainInteractions": [
+          "Replication ensures message durability",
+          "Coordination manages consumer group state",
+          "Client APIs enable producer/consumer access",
+          "Metadata management provides topic/partition information"
+        ]
+      }
+    },
+    {
+      "id": "domain:replication-durability",
+      "type": "domain",
+      "name": "Replication & Durability",
+      "summary": "Ensures message durability and availability through leader-follower replication across brokers, in-sync replica (ISR) management, and log storage.",
+      "tags": ["replication", "durability", "high-availability", "fault-tolerance", "storage"],
+      "complexity": "complex",
+      "domainMeta": {
+        "entities": ["Leader", "Follower", "ISR", "Replica", "LogSegment", "OffsetIndex"],
+        "businessRules": [
+          "At least one ISR must exist for acknowledged writes",
+          "Leader handles all reads and writes",
+          "Followers replicate data asynchronously",
+          "Broker failures trigger leader election for affected partitions",
+          "Committed log is persisted to disk for durability"
+        ],
+        "crossDomainInteractions": [
+          "Distributed coordination elects partition leaders",
+          "Event streaming depends on replicated data",
+          "Metadata management tracks replica assignments"
+        ]
+      }
+    },
+    {
+      "id": "domain:distributed-coordination",
+      "type": "domain",
+      "name": "Distributed Coordination & Metadata",
+      "summary": "Manages cluster topology, controller election, broker registration, metadata versioning via KRaft consensus, and replication factor enforcement.",
+      "tags": ["coordination", "metadata", "KRaft", "consensus", "cluster-management", "control-plane"],
+      "complexity": "complex",
+      "domainMeta": {
+        "entities": ["Controller", "Broker", "MetadataImage", "ClusterMetadata", "ReplicaAssignment"],
+        "businessRules": [
+          "Single active controller at any time (leadership via quorum)",
+          "All metadata changes flow through controller",
+          "Replica assignments define durability requirements",
+          "Broker registration triggers metadata updates",
+          "Metadata versioning enables incremental sync"
+        ],
+        "crossDomainInteractions": [
+          "Enables leader election for event streaming partitions",
+          "Manages broker lifecycle and cluster changes",
+          "Provides configuration for replication policies",
+          "Coordinates consumer group changes"
+        ]
+      }
+    },
+    {
+      "id": "domain:stream-processing",
+      "type": "domain",
+      "name": "Stream Processing",
+      "summary": "Provides topology-based stream processing allowing applications to transform, aggregate, and analyze event streams with stateful operations and processor trees.",
+      "tags": ["streams", "processing", "topology", "stateful", "transformations", "applications"],
+      "complexity": "complex",
+      "domainMeta": {
+        "entities": ["StreamsBuilder", "Topology", "StreamThread", "Task", "StateStore", "Processor"],
+        "businessRules": [
+          "Topology defines processing DAG before execution",
+          "Each task processes events from assigned partitions",
+          "State stores maintain local materialized state",
+          "Exactly-once semantics require offset commit coordination",
+          "Multi-threaded execution improves throughput"
+        ],
+        "crossDomainInteractions": [
+          "Consumes from event streaming topics as sources",
+          "Produces results to event streaming topics as sinks",
+          "Uses client APIs for internal communication",
+          "Leverages coordination for consumer group management"
+        ]
+      }
+    },
+    {
+      "id": "domain:data-integration",
+      "type": "domain",
+      "name": "Data Integration via Connect",
+      "summary": "Integrates external systems with Kafka through pluggable source and sink connectors, enabling data pipelines between Kafka and databases, APIs, file systems.",
+      "tags": ["integration", "connectors", "data-pipelines", "transformations", "external-systems"],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entities": ["SourceConnector", "SinkConnector", "Worker", "Task", "Herder", "ConnectorConfig"],
+        "businessRules": [
+          "Connectors run as distributed tasks across worker nodes",
+          "Source connectors poll external systems and produce to Kafka",
+          "Sink connectors consume from Kafka and write to external systems",
+          "Offsets track source/sink progress for exactly-once semantics",
+          "Configuration is stored in Kafka topics for durability"
+        ],
+        "crossDomainInteractions": [
+          "Uses event streaming for configuration and offset topics",
+          "Uses coordination for connector task assignment",
+          "Uses client APIs for internal communication"
+        ]
+      }
+    },
+    {
+      "id": "domain:client-communication",
+      "type": "domain",
+      "name": "Client Communication & Protocols",
+      "summary": "Manages network communication between clients and brokers via Kafka protocol, handling request/response routing, authentication, TLS encryption, and API versioning.",
+      "tags": ["networking", "protocols", "clients", "security", "communication"],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entities": ["SocketServer", "KafkaApis", "NetworkClient", "RequestHandler", "TlsTransportLayer"],
+        "businessRules": [
+          "Binary protocol enables efficient serialization",
+          "API versioning ensures backward compatibility",
+          "TLS provides encryption and authentication",
+          "Rate limiting prevents resource exhaustion",
+          "Connection pooling minimizes latency"
+        ],
+        "crossDomainInteractions": [
+          "Handles requests from all client types",
+          "Routes to appropriate domain handlers",
+          "Enforces security and quotas"
+        ]
+      }
+    },
+    {
+      "id": "flow:message-production",
+      "type": "flow",
+      "name": "Message Production",
+      "summary": "Producer sends messages to topics, which are routed to appropriate partitions, replicated across brokers, and acknowledged to client.",
+      "tags": ["produce", "event-streaming", "publish"],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "KafkaProducer.send() or Produce API request",
+        "entryType": "api"
+      }
+    },
+    {
+      "id": "step:message-production:validate-request",
+      "type": "step",
+      "name": "Validate Producer Request",
+      "summary": "Validate message format, topic existence, authorization, and quotas",
+      "tags": ["validation", "security", "quotas"],
+      "complexity": "simple",
+      "filePath": "core/src/main/scala/kafka/server/KafkaApis.scala",
+      "lineRange": [1, 50]
+    },
+    {
+      "id": "step:message-production:route-partition",
+      "type": "step",
+      "name": "Route to Partition",
+      "summary": "Determine target partition using partitioner or explicit partition assignment",
+      "tags": ["routing", "partitioning"],
+      "complexity": "simple",
+      "filePath": "clients/src/main/java/org/apache/kafka/clients/producer/KafkaProducer.java",
+      "lineRange": [1, 50]
+    },
+    {
+      "id": "step:message-production:append-log",
+      "type": "step",
+      "name": "Append to Leader Log",
+      "summary": "Broker leader appends messages to partition log segment in sequential order",
+      "tags": ["storage", "replication"],
+      "complexity": "moderate",
+      "filePath": "core/src/main/scala/kafka/log/LogManager.scala",
+      "lineRange": [1, 50]
+    },
+    {
+      "id": "step:message-production:replicate",
+      "type": "step",
+      "name": "Replicate to Followers",
+      "summary": "Followers asynchronously fetch and apply log entries to maintain consistency",
+      "tags": ["replication", "durability"],
+      "complexity": "moderate",
+      "filePath": "core/src/main/scala/kafka/server/ReplicaManager.scala",
+      "lineRange": [1, 50]
+    },
+    {
+      "id": "step:message-production:acknowledge",
+      "type": "step",
+      "name": "Send Acknowledgment",
+      "summary": "Broker sends ProduceResponse with offset and timestamp to producer",
+      "tags": ["acknowledgment", "communication"],
+      "complexity": "simple",
+      "filePath": "core/src/main/scala/kafka/server/KafkaApis.scala",
+      "lineRange": [100, 150]
+    },
+    {
+      "id": "flow:message-consumption",
+      "type": "flow",
+      "name": "Message Consumption",
+      "summary": "Consumer fetches messages from topics/partitions, updates offset position, handles group coordination and rebalancing.",
+      "tags": ["consume", "event-streaming", "subscribe"],
+      "complexity": "complex",
+      "domainMeta": {
+        "entryPoint": "KafkaConsumer.poll() or Fetch API request",
+        "entryType": "api"
+      }
+    },
+    {
+      "id": "step:message-consumption:group-join",
+      "type": "step",
+      "name": "Join Consumer Group",
+      "summary": "Register consumer with group coordinator and participate in group rebalancing",
+      "tags": ["coordination", "group-management"],
+      "complexity": "moderate",
+      "filePath": "core/src/main/scala/kafka/coordinator/group/GroupCoordinatorService.scala",
+      "lineRange": [1, 50]
+    },
+    {
+      "id": "step:message-consumption:assign-partitions",
+      "type": "step",
+      "name": "Assign Partitions",
+      "summary": "Coordinator assigns partitions to consumer using rebalancing strategy",
+      "tags": ["assignment", "rebalancing"],
+      "complexity": "moderate",
+      "filePath": "core/src/main/scala/kafka/coordinator/group/GroupCoordinatorService.scala",
+      "lineRange": [100, 150]
+    },
+    {
+      "id": "step:message-consumption:seek-offset",
+      "type": "step",
+      "name": "Seek to Offset",
+      "summary": "Consumer seeks to last committed offset or specified position",
+      "tags": ["offset-management", "position"],
+      "complexity": "simple",
+      "filePath": "clients/src/main/java/org/apache/kafka/clients/consumer/KafkaConsumer.java",
+      "lineRange": [200, 250]
+    },
+    {
+      "id": "step:message-consumption:fetch-records",
+      "type": "step",
+      "name": "Fetch Records from Broker",
+      "summary": "Broker services fetch request by reading log segments from assigned partitions",
+      "tags": ["fetch", "reading"],
+      "complexity": "moderate",
+      "filePath": "core/src/main/scala/kafka/server/ReplicaManager.scala",
+      "lineRange": [200, 250]
+    },
+    {
+      "id": "step:message-consumption:commit-offset",
+      "type": "step",
+      "name": "Commit Offset",
+      "summary": "Consumer commits current offset to consumer group coordinator for durability",
+      "tags": ["offset-tracking", "persistence"],
+      "complexity": "simple",
+      "filePath": "core/src/main/scala/kafka/coordinator/group/GroupCoordinatorService.scala",
+      "lineRange": [300, 350]
+    },
+    {
+      "id": "step:message-consumption:heartbeat",
+      "type": "step",
+      "name": "Send Heartbeat",
+      "summary": "Consumer sends periodic heartbeat to remain active in group and detect failures",
+      "tags": ["liveness", "failure-detection"],
+      "complexity": "simple",
+      "filePath": "clients/src/main/java/org/apache/kafka/clients/consumer/KafkaConsumer.java",
+      "lineRange": [350, 400]
+    },
+    {
+      "id": "flow:partition-replication",
+      "type": "flow",
+      "name": "Leader-Follower Replication",
+      "summary": "Synchronizes message replicas across brokers using fetch-based replication, maintaining ISR for durability guarantees.",
+      "tags": ["replication", "durability", "consistency"],
+      "complexity": "complex",
+      "domainMeta": {
+        "entryPoint": "Replica assignment or leader election event",
+        "entryType": "event"
+      }
+    },
+    {
+      "id": "step:partition-replication:leader-appends",
+      "type": "step",
+      "name": "Leader Appends Message",
+      "summary": "Leader writes message to its log and marks as uncommitted",
+      "tags": ["writing", "storage"],
+      "complexity": "simple",
+      "filePath": "core/src/main/scala/kafka/log/Log.scala",
+      "lineRange": [1, 50]
+    },
+    {
+      "id": "step:partition-replication:follower-fetches",
+      "type": "step",
+      "name": "Follower Fetches from Leader",
+      "summary": "Replica fetcher thread periodically fetches new entries from leader partition",
+      "tags": ["fetching", "replication"],
+      "complexity": "moderate",
+      "filePath": "core/src/main/scala/kafka/server/ReplicaFetcherManager.scala",
+      "lineRange": [1, 50]
+    },
+    {
+      "id": "step:partition-replication:follower-appends",
+      "type": "step",
+      "name": "Follower Appends to Log",
+      "summary": "Follower writes fetched entries to its log in same order",
+      "tags": ["writing", "storage"],
+      "complexity": "simple",
+      "filePath": "core/src/main/scala/kafka/log/Log.scala",
+      "lineRange": [100, 150]
+    },
+    {
+      "id": "step:partition-replication:isr-tracking",
+      "type": "step",
+      "name": "Update ISR Status",
+      "summary": "Leader tracks which replicas are in-sync based on fetch lag and heartbeats",
+      "tags": ["isr-management", "monitoring"],
+      "complexity": "moderate",
+      "filePath": "core/src/main/scala/kafka/server/ReplicaManager.scala",
+      "lineRange": [150, 200]
+    },
+    {
+      "id": "step:partition-replication:commit-mark",
+      "type": "step",
+      "name": "Mark as Committed",
+      "summary": "Leader marks message as committed when ISR threshold is met and notifies followers",
+      "tags": ["commitment", "durability"],
+      "complexity": "moderate",
+      "filePath": "core/src/main/scala/kafka/server/ReplicaManager.scala",
+      "lineRange": [250, 300]
+    },
+    {
+      "id": "flow:broker-registration",
+      "type": "flow",
+      "name": "Broker Registration & Discovery",
+      "summary": "Broker registers with controller, announces capabilities/configuration, and maintains active membership via heartbeats.",
+      "tags": ["coordination", "broker-lifecycle", "metadata"],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "Broker startup or periodic heartbeat event",
+        "entryType": "event"
+      }
+    },
+    {
+      "id": "step:broker-registration:connect-controller",
+      "type": "step",
+      "name": "Connect to Controller",
+      "summary": "Broker discovers and connects to active controller node",
+      "tags": ["discovery", "connection"],
+      "complexity": "simple",
+      "filePath": "core/src/main/scala/kafka/server/BrokerServer.scala",
+      "lineRange": [1, 50]
+    },
+    {
+      "id": "step:broker-registration:send-registration",
+      "type": "step",
+      "name": "Send Registration Request",
+      "summary": "Broker sends BrokerRegistration with ID, epoch, endpoints, and configuration",
+      "tags": ["registration", "metadata"],
+      "complexity": "simple",
+      "filePath": "core/src/main/scala/kafka/server/BrokerServer.scala",
+      "lineRange": [50, 100]
+    },
+    {
+      "id": "step:broker-registration:receive-metadata",
+      "type": "step",
+      "name": "Receive MetadataImage",
+      "summary": "Controller sends back current cluster metadata snapshot to broker",
+      "tags": ["metadata", "synchronization"],
+      "complexity": "moderate",
+      "filePath": "core/src/main/scala/kafka/server/ControllerServer.scala",
+      "lineRange": [1, 50]
+    },
+    {
+      "id": "step:broker-registration:apply-metadata",
+      "type": "step",
+      "name": "Apply Local Metadata",
+      "summary": "Broker integrates metadata into local state and triggers necessary operations (partition startup)",
+      "tags": ["metadata-application", "state-update"],
+      "complexity": "moderate",
+      "filePath": "core/src/main/scala/kafka/server/BrokerServer.scala",
+      "lineRange": [100, 150]
+    },
+    {
+      "id": "flow:controller-election",
+      "type": "flow",
+      "name": "Controller Leadership Election",
+      "summary": "Establishes single controller via KRaft quorum consensus, handles handoff, and propagates leadership changes.",
+      "tags": ["coordination", "leadership", "consensus", "KRaft"],
+      "complexity": "complex",
+      "domainMeta": {
+        "entryPoint": "Controller startup or leader failure detection",
+        "entryType": "event"
+      }
+    },
+    {
+      "id": "step:controller-election:quorum-vote",
+      "type": "step",
+      "name": "Participate in Quorum Vote",
+      "summary": "Controller node requests votes from quorum members during election",
+      "tags": ["voting", "consensus"],
+      "complexity": "moderate",
+      "filePath": "raft/src/main/java/org/apache/kafka/raft/KafkaRaftClient.java",
+      "lineRange": [1, 50]
+    },
+    {
+      "id": "step:controller-election:acquire-leadership",
+      "type": "step",
+      "name": "Acquire Leadership",
+      "summary": "Winning node transitions to leader state after majority quorum confirms",
+      "tags": ["leadership"],
+      "complexity": "simple",
+      "filePath": "core/src/main/scala/kafka/server/ControllerServer.scala",
+      "lineRange": [50, 100]
+    },
+    {
+      "id": "step:controller-election:broadcast-epoch",
+      "type": "step",
+      "name": "Broadcast Controller Epoch",
+      "summary": "Controller broadcasts new epoch to all brokers to coordinate leadership change",
+      "tags": ["broadcasting", "coordination"],
+      "complexity": "moderate",
+      "filePath": "core/src/main/scala/kafka/server/ControllerServer.scala",
+      "lineRange": [100, 150]
+    },
+    {
+      "id": "flow:stream-topology-execution",
+      "type": "flow",
+      "name": "Stream Topology Execution",
+      "summary": "Initializes stream application topology, assigns tasks to threads, and processes events through processor pipeline.",
+      "tags": ["streams", "processing", "topology", "applications"],
+      "complexity": "complex",
+      "domainMeta": {
+        "entryPoint": "KafkaStreams.start() or application startup",
+        "entryType": "api"
+      }
+    },
+    {
+      "id": "step:stream-topology-execution:build-topology",
+      "type": "step",
+      "name": "Build Topology",
+      "summary": "StreamsBuilder creates processor topology DAG from source/sink/state definitions",
+      "tags": ["topology-building", "configuration"],
+      "complexity": "moderate",
+      "filePath": "streams/src/main/java/org/apache/kafka/streams/StreamsBuilder.java",
+      "lineRange": [1, 50]
+    },
+    {
+      "id": "step:stream-topology-execution:assign-tasks",
+      "type": "step",
+      "name": "Assign Partition Tasks",
+      "summary": "TaskManager assigns partitions to local tasks and creates processor instances",
+      "tags": ["task-assignment", "partitioning"],
+      "complexity": "moderate",
+      "filePath": "streams/src/main/java/org/apache/kafka/streams/processor/internals/TaskManager.java",
+      "lineRange": [1, 50]
+    },
+    {
+      "id": "step:stream-topology-execution:init-state-stores",
+      "type": "step",
+      "name": "Initialize State Stores",
+      "summary": "Open and restore state stores from changelog topics or local cache",
+      "tags": ["state-management", "persistence"],
+      "complexity": "moderate",
+      "filePath": "streams/src/main/java/org/apache/kafka/streams/state/internals/StateStoreFactory.java",
+      "lineRange": [1, 50]
+    },
+    {
+      "id": "step:stream-topology-execution:start-threads",
+      "type": "step",
+      "name": "Start Stream Threads",
+      "summary": "Create worker threads that poll from assigned partitions and process records",
+      "tags": ["threading", "execution"],
+      "complexity": "moderate",
+      "filePath": "streams/src/main/java/org/apache/kafka/streams/processor/internals/StreamThread.java",
+      "lineRange": [1, 50]
+    },
+    {
+      "id": "step:stream-topology-execution:process-records",
+      "type": "step",
+      "name": "Process Records Through Topology",
+      "summary": "Stream thread fetches records and routes through processor chain (filters, maps, joins, aggregates)",
+      "tags": ["processing", "transformation"],
+      "complexity": "complex",
+      "filePath": "streams/src/main/java/org/apache/kafka/streams/processor/internals/Processor.java",
+      "lineRange": [1, 50]
+    },
+    {
+      "id": "step:stream-topology-execution:commit-offsets",
+      "type": "step",
+      "name": "Commit Offsets Periodically",
+      "summary": "Stream thread commits processed record offsets to coordinator for exactly-once semantics",
+      "tags": ["offset-management", "exactly-once"],
+      "complexity": "moderate",
+      "filePath": "streams/src/main/java/org/apache/kafka/streams/processor/internals/TaskManager.java",
+      "lineRange": [100, 150]
+    },
+    {
+      "id": "flow:connector-data-pipeline",
+      "type": "flow",
+      "name": "Data Integration via Connector",
+      "summary": "Executes data pipeline where source connector polls external system, produces to Kafka topic, or sink connector consumes and writes out.",
+      "tags": ["integration", "connectors", "data-pipeline"],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "Worker task assignment or connector configuration",
+        "entryType": "event"
+      }
+    },
+    {
+      "id": "step:connector-data-pipeline:source-poll",
+      "type": "step",
+      "name": "Source Polls External System",
+      "summary": "Source connector queries external system (database, API, file) for new data",
+      "tags": ["polling", "external-integration"],
+      "complexity": "moderate",
+      "filePath": "connect/src/main/java/org/apache/kafka/connect/source/SourceConnector.java",
+      "lineRange": [1, 50]
+    },
+    {
+      "id": "step:connector-data-pipeline:source-produces",
+      "type": "step",
+      "name": "Source Produces to Kafka",
+      "summary": "Source connector transforms external records to SourceRecords and produces to topic",
+      "tags": ["producing", "transformation"],
+      "complexity": "moderate",
+      "filePath": "connect/src/main/java/org/apache/kafka/connect/source/SourceTask.java",
+      "lineRange": [1, 50]
+    },
+    {
+      "id": "step:connector-data-pipeline:sink-consumes",
+      "type": "step",
+      "name": "Sink Consumes from Kafka",
+      "summary": "Sink connector consumer group fetches records from assigned topic partitions",
+      "tags": ["consuming", "fetching"],
+      "complexity": "simple",
+      "filePath": "connect/src/main/java/org/apache/kafka/connect/sink/SinkConnector.java",
+      "lineRange": [1, 50]
+    },
+    {
+      "id": "step:connector-data-pipeline:sink-transform",
+      "type": "step",
+      "name": "Sink Transforms Records",
+      "summary": "Sink connector prepares records for external system (format conversion, schema mapping)",
+      "tags": ["transformation", "formatting"],
+      "complexity": "moderate",
+      "filePath": "connect/src/main/java/org/apache/kafka/connect/sink/SinkTask.java",
+      "lineRange": [50, 100]
+    },
+    {
+      "id": "step:connector-data-pipeline:sink-writes",
+      "type": "step",
+      "name": "Sink Writes to External System",
+      "summary": "Sink connector writes transformed records to external system (database, file, API)",
+      "tags": ["writing", "external-integration"],
+      "complexity": "moderate",
+      "filePath": "connect/src/main/java/org/apache/kafka/connect/sink/SinkTask.java",
+      "lineRange": [100, 150]
+    },
+    {
+      "id": "flow:request-response-handling",
+      "type": "flow",
+      "name": "Network Request-Response Handling",
+      "summary": "Receives client requests on socket server, routes to appropriate handler, processes, and sends response with error handling.",
+      "tags": ["networking", "communication", "protocols"],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "Incoming socket connection from client",
+        "entryType": "network"
+      }
+    },
+    {
+      "id": "step:request-response-handling:accept-connection",
+      "type": "step",
+      "name": "Accept Socket Connection",
+      "summary": "SocketServer accepts incoming TCP connection from client",
+      "tags": ["networking", "connection"],
+      "complexity": "simple",
+      "filePath": "core/src/main/scala/kafka/network/SocketServer.scala",
+      "lineRange": [1, 50]
+    },
+    {
+      "id": "step:request-response-handling:parse-request",
+      "type": "step",
+      "name": "Parse Request Bytes",
+      "summary": "NetworkProcessor deserializes binary request into KafkaRequest object",
+      "tags": ["parsing", "serialization"],
+      "complexity": "simple",
+      "filePath": "core/src/main/scala/kafka/network/RequestChannel.scala",
+      "lineRange": [1, 50]
+    },
+    {
+      "id": "step:request-response-handling:authenticate",
+      "type": "step",
+      "name": "Authenticate Client",
+      "summary": "Verify client credentials (SASL/SSL) and authorize request against ACLs",
+      "tags": ["security", "authentication"],
+      "complexity": "moderate",
+      "filePath": "core/src/main/scala/kafka/server/KafkaApis.scala",
+      "lineRange": [50, 100]
+    },
+    {
+      "id": "step:request-response-handling:dispatch-request",
+      "type": "step",
+      "name": "Dispatch to Handler",
+      "summary": "KafkaApis routes request to appropriate handler based on API type (Produce, Fetch, Metadata, etc)",
+      "tags": ["routing", "dispatching"],
+      "complexity": "simple",
+      "filePath": "core/src/main/scala/kafka/server/KafkaApis.scala",
+      "lineRange": [100, 150]
+    },
+    {
+      "id": "step:request-response-handling:send-response",
+      "type": "step",
+      "name": "Send Response",
+      "summary": "Serialize KafkaResponse back to binary and send to client socket",
+      "tags": ["serialization", "communication"],
+      "complexity": "simple",
+      "filePath": "core/src/main/scala/kafka/network/RequestChannel.scala",
+      "lineRange": [100, 150]
+    },
+    {
+      "id": "edge:flow:message-production",
+      "type": "contains_flow",
+      "source": "domain:event-streaming",
+      "target": "flow:message-production",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "id": "edge:flow:message-consumption",
+      "type": "contains_flow",
+      "source": "domain:event-streaming",
+      "target": "flow:message-consumption",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "id": "edge:step:partition-replication",
+      "type": "contains_flow",
+      "source": "domain:replication-durability",
+      "target": "flow:partition-replication",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "id": "edge:flow:broker-registration",
+      "type": "contains_flow",
+      "source": "domain:distributed-coordination",
+      "target": "flow:broker-registration",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "id": "edge:flow:controller-election",
+      "type": "contains_flow",
+      "source": "domain:distributed-coordination",
+      "target": "flow:controller-election",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "id": "edge:flow:stream-topology-execution",
+      "type": "contains_flow",
+      "source": "domain:stream-processing",
+      "target": "flow:stream-topology-execution",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "id": "edge:flow:connector-data-pipeline",
+      "type": "contains_flow",
+      "source": "domain:data-integration",
+      "target": "flow:connector-data-pipeline",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "id": "edge:flow:request-response-handling",
+      "type": "contains_flow",
+      "source": "domain:client-communication",
+      "target": "flow:request-response-handling",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "id": "edge:step:message-production:validate",
+      "type": "flow_step",
+      "source": "flow:message-production",
+      "target": "step:message-production:validate-request",
+      "direction": "forward",
+      "weight": 0.17
+    },
+    {
+      "id": "edge:step:message-production:route",
+      "type": "flow_step",
+      "source": "flow:message-production",
+      "target": "step:message-production:route-partition",
+      "direction": "forward",
+      "weight": 0.33
+    },
+    {
+      "id": "edge:step:message-production:append",
+      "type": "flow_step",
+      "source": "flow:message-production",
+      "target": "step:message-production:append-log",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "id": "edge:step:message-production:replicate",
+      "type": "flow_step",
+      "source": "flow:message-production",
+      "target": "step:message-production:replicate",
+      "direction": "forward",
+      "weight": 0.67
+    },
+    {
+      "id": "edge:step:message-production:ack",
+      "type": "flow_step",
+      "source": "flow:message-production",
+      "target": "step:message-production:acknowledge",
+      "direction": "forward",
+      "weight": 0.83
+    },
+    {
+      "id": "edge:step:message-consumption:join",
+      "type": "flow_step",
+      "source": "flow:message-consumption",
+      "target": "step:message-consumption:group-join",
+      "direction": "forward",
+      "weight": 0.14
+    },
+    {
+      "id": "edge:step:message-consumption:assign",
+      "type": "flow_step",
+      "source": "flow:message-consumption",
+      "target": "step:message-consumption:assign-partitions",
+      "direction": "forward",
+      "weight": 0.29
+    },
+    {
+      "id": "edge:step:message-consumption:seek",
+      "type": "flow_step",
+      "source": "flow:message-consumption",
+      "target": "step:message-consumption:seek-offset",
+      "direction": "forward",
+      "weight": 0.43
+    },
+    {
+      "id": "edge:step:message-consumption:fetch",
+      "type": "flow_step",
+      "source": "flow:message-consumption",
+      "target": "step:message-consumption:fetch-records",
+      "direction": "forward",
+      "weight": 0.57
+    },
+    {
+      "id": "edge:step:message-consumption:commit",
+      "type": "flow_step",
+      "source": "flow:message-consumption",
+      "target": "step:message-consumption:commit-offset",
+      "direction": "forward",
+      "weight": 0.71
+    },
+    {
+      "id": "edge:step:message-consumption:heartbeat",
+      "type": "flow_step",
+      "source": "flow:message-consumption",
+      "target": "step:message-consumption:heartbeat",
+      "direction": "forward",
+      "weight": 0.86
+    },
+    {
+      "id": "edge:step:partition-replication:leader",
+      "type": "flow_step",
+      "source": "flow:partition-replication",
+      "target": "step:partition-replication:leader-appends",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "id": "edge:step:partition-replication:fetch",
+      "type": "flow_step",
+      "source": "flow:partition-replication",
+      "target": "step:partition-replication:follower-fetches",
+      "direction": "forward",
+      "weight": 0.4
+    },
+    {
+      "id": "edge:step:partition-replication:append",
+      "type": "flow_step",
+      "source": "flow:partition-replication",
+      "target": "step:partition-replication:follower-appends",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "id": "edge:step:partition-replication:isr",
+      "type": "flow_step",
+      "source": "flow:partition-replication",
+      "target": "step:partition-replication:isr-tracking",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "id": "edge:step:partition-replication:commit",
+      "type": "flow_step",
+      "source": "flow:partition-replication",
+      "target": "step:partition-replication:commit-mark",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "id": "edge:step:broker-registration:connect",
+      "type": "flow_step",
+      "source": "flow:broker-registration",
+      "target": "step:broker-registration:connect-controller",
+      "direction": "forward",
+      "weight": 0.25
+    },
+    {
+      "id": "edge:step:broker-registration:send",
+      "type": "flow_step",
+      "source": "flow:broker-registration",
+      "target": "step:broker-registration:send-registration",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "id": "edge:step:broker-registration:receive",
+      "type": "flow_step",
+      "source": "flow:broker-registration",
+      "target": "step:broker-registration:receive-metadata",
+      "direction": "forward",
+      "weight": 0.75
+    },
+    {
+      "id": "edge:step:broker-registration:apply",
+      "type": "flow_step",
+      "source": "flow:broker-registration",
+      "target": "step:broker-registration:apply-metadata",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "id": "edge:step:controller-election:vote",
+      "type": "flow_step",
+      "source": "flow:controller-election",
+      "target": "step:controller-election:quorum-vote",
+      "direction": "forward",
+      "weight": 0.33
+    },
+    {
+      "id": "edge:step:controller-election:acquire",
+      "type": "flow_step",
+      "source": "flow:controller-election",
+      "target": "step:controller-election:acquire-leadership",
+      "direction": "forward",
+      "weight": 0.67
+    },
+    {
+      "id": "edge:step:controller-election:broadcast",
+      "type": "flow_step",
+      "source": "flow:controller-election",
+      "target": "step:controller-election:broadcast-epoch",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "id": "edge:step:stream-execution:build",
+      "type": "flow_step",
+      "source": "flow:stream-topology-execution",
+      "target": "step:stream-topology-execution:build-topology",
+      "direction": "forward",
+      "weight": 0.17
+    },
+    {
+      "id": "edge:step:stream-execution:assign",
+      "type": "flow_step",
+      "source": "flow:stream-topology-execution",
+      "target": "step:stream-topology-execution:assign-tasks",
+      "direction": "forward",
+      "weight": 0.33
+    },
+    {
+      "id": "edge:step:stream-execution:state",
+      "type": "flow_step",
+      "source": "flow:stream-topology-execution",
+      "target": "step:stream-topology-execution:init-state-stores",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "id": "edge:step:stream-execution:threads",
+      "type": "flow_step",
+      "source": "flow:stream-topology-execution",
+      "target": "step:stream-topology-execution:start-threads",
+      "direction": "forward",
+      "weight": 0.67
+    },
+    {
+      "id": "edge:step:stream-execution:process",
+      "type": "flow_step",
+      "source": "flow:stream-topology-execution",
+      "target": "step:stream-topology-execution:process-records",
+      "direction": "forward",
+      "weight": 0.83
+    },
+    {
+      "id": "edge:step:stream-execution:commit",
+      "type": "flow_step",
+      "source": "flow:stream-topology-execution",
+      "target": "step:stream-topology-execution:commit-offsets",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "id": "edge:step:connector-pipeline:source-poll",
+      "type": "flow_step",
+      "source": "flow:connector-data-pipeline",
+      "target": "step:connector-data-pipeline:source-poll",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "id": "edge:step:connector-pipeline:source-produce",
+      "type": "flow_step",
+      "source": "flow:connector-data-pipeline",
+      "target": "step:connector-data-pipeline:source-produces",
+      "direction": "forward",
+      "weight": 0.4
+    },
+    {
+      "id": "edge:step:connector-pipeline:sink-consume",
+      "type": "flow_step",
+      "source": "flow:connector-data-pipeline",
+      "target": "step:connector-data-pipeline:sink-consumes",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "id": "edge:step:connector-pipeline:sink-transform",
+      "type": "flow_step",
+      "source": "flow:connector-data-pipeline",
+      "target": "step:connector-data-pipeline:sink-transform",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "id": "edge:step:connector-pipeline:sink-write",
+      "type": "flow_step",
+      "source": "flow:connector-data-pipeline",
+      "target": "step:connector-data-pipeline:sink-writes",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "id": "edge:step:request-response:accept",
+      "type": "flow_step",
+      "source": "flow:request-response-handling",
+      "target": "step:request-response-handling:accept-connection",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "id": "edge:step:request-response:parse",
+      "type": "flow_step",
+      "source": "flow:request-response-handling",
+      "target": "step:request-response-handling:parse-request",
+      "direction": "forward",
+      "weight": 0.4
+    },
+    {
+      "id": "edge:step:request-response:auth",
+      "type": "flow_step",
+      "source": "flow:request-response-handling",
+      "target": "step:request-response-handling:authenticate",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "id": "edge:step:request-response:dispatch",
+      "type": "flow_step",
+      "source": "flow:request-response-handling",
+      "target": "step:request-response-handling:dispatch-request",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "id": "edge:step:request-response:send",
+      "type": "flow_step",
+      "source": "flow:request-response-handling",
+      "target": "step:request-response-handling:send-response",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "id": "edge:cross:streaming-replication",
+      "type": "cross_domain",
+      "source": "domain:event-streaming",
+      "target": "domain:replication-durability",
+      "direction": "forward",
+      "description": "Event streaming depends on replicated storage for durability guarantees",
+      "weight": 0.9
+    },
+    {
+      "id": "edge:cross:streaming-coordination",
+      "type": "cross_domain",
+      "source": "domain:event-streaming",
+      "target": "domain:distributed-coordination",
+      "direction": "forward",
+      "description": "Distributed coordination provides topic/partition metadata and broker endpoints",
+      "weight": 0.85
+    },
+    {
+      "id": "edge:cross:streaming-communication",
+      "type": "cross_domain",
+      "source": "domain:event-streaming",
+      "target": "domain:client-communication",
+      "direction": "forward",
+      "description": "Client communication enables producer/consumer network requests",
+      "weight": 0.9
+    },
+    {
+      "id": "edge:cross:replication-coordination",
+      "type": "cross_domain",
+      "source": "domain:replication-durability",
+      "target": "domain:distributed-coordination",
+      "direction": "forward",
+      "description": "Distributed coordination assigns replicas and elects partition leaders",
+      "weight": 0.9
+    },
+    {
+      "id": "edge:cross:streams-streaming",
+      "type": "cross_domain",
+      "source": "domain:stream-processing",
+      "target": "domain:event-streaming",
+      "direction": "forward",
+      "description": "Stream processing reads from and writes to event streaming topics",
+      "weight": 0.95
+    },
+    {
+      "id": "edge:cross:streams-coordination",
+      "type": "cross_domain",
+      "source": "domain:stream-processing",
+      "target": "domain:distributed-coordination",
+      "direction": "forward",
+      "description": "Distributed coordination manages consumer group state for stream applications",
+      "weight": 0.8
+    },
+    {
+      "id": "edge:cross:connect-streaming",
+      "type": "cross_domain",
+      "source": "domain:data-integration",
+      "target": "domain:event-streaming",
+      "direction": "forward",
+      "description": "Kafka Connect integrates external systems via event streaming topics",
+      "weight": 0.85
+    },
+    {
+      "id": "edge:cross:connect-coordination",
+      "type": "cross_domain",
+      "source": "domain:data-integration",
+      "target": "domain:distributed-coordination",
+      "direction": "forward",
+      "description": "Distributed coordination assigns connector tasks to workers and manages config",
+      "weight": 0.75
+    },
+    {
+      "id": "edge:cross:communication-all",
+      "type": "cross_domain",
+      "source": "domain:client-communication",
+      "target": "domain:event-streaming",
+      "direction": "forward",
+      "description": "All event streaming operations flow through network communication layer",
+      "weight": 0.95
+    }
+  ],
+  "edges": [
+    {
+      "source": "domain:event-streaming",
+      "target": "flow:message-production",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "source": "domain:event-streaming",
+      "target": "flow:message-consumption",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "source": "domain:replication-durability",
+      "target": "flow:partition-replication",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "source": "domain:distributed-coordination",
+      "target": "flow:broker-registration",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "source": "domain:distributed-coordination",
+      "target": "flow:controller-election",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "source": "domain:stream-processing",
+      "target": "flow:stream-topology-execution",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "source": "domain:data-integration",
+      "target": "flow:connector-data-pipeline",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "source": "domain:client-communication",
+      "target": "flow:request-response-handling",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "source": "flow:message-production",
+      "target": "step:message-production:validate-request",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.17
+    },
+    {
+      "source": "flow:message-production",
+      "target": "step:message-production:route-partition",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.33
+    },
+    {
+      "source": "flow:message-production",
+      "target": "step:message-production:append-log",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "flow:message-production",
+      "target": "step:message-production:replicate",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.67
+    },
+    {
+      "source": "flow:message-production",
+      "target": "step:message-production:acknowledge",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.83
+    },
+    {
+      "source": "flow:message-consumption",
+      "target": "step:message-consumption:group-join",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.14
+    },
+    {
+      "source": "flow:message-consumption",
+      "target": "step:message-consumption:assign-partitions",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.29
+    },
+    {
+      "source": "flow:message-consumption",
+      "target": "step:message-consumption:seek-offset",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.43
+    },
+    {
+      "source": "flow:message-consumption",
+      "target": "step:message-consumption:fetch-records",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.57
+    },
+    {
+      "source": "flow:message-consumption",
+      "target": "step:message-consumption:commit-offset",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.71
+    },
+    {
+      "source": "flow:message-consumption",
+      "target": "step:message-consumption:heartbeat",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.86
+    },
+    {
+      "source": "flow:partition-replication",
+      "target": "step:partition-replication:leader-appends",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "source": "flow:partition-replication",
+      "target": "step:partition-replication:follower-fetches",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.4
+    },
+    {
+      "source": "flow:partition-replication",
+      "target": "step:partition-replication:follower-appends",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "flow:partition-replication",
+      "target": "step:partition-replication:isr-tracking",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "flow:partition-replication",
+      "target": "step:partition-replication:commit-mark",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "source": "flow:broker-registration",
+      "target": "step:broker-registration:connect-controller",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.25
+    },
+    {
+      "source": "flow:broker-registration",
+      "target": "step:broker-registration:send-registration",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "flow:broker-registration",
+      "target": "step:broker-registration:receive-metadata",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.75
+    },
+    {
+      "source": "flow:broker-registration",
+      "target": "step:broker-registration:apply-metadata",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "source": "flow:controller-election",
+      "target": "step:controller-election:quorum-vote",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.33
+    },
+    {
+      "source": "flow:controller-election",
+      "target": "step:controller-election:acquire-leadership",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.67
+    },
+    {
+      "source": "flow:controller-election",
+      "target": "step:controller-election:broadcast-epoch",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "source": "flow:stream-topology-execution",
+      "target": "step:stream-topology-execution:build-topology",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.17
+    },
+    {
+      "source": "flow:stream-topology-execution",
+      "target": "step:stream-topology-execution:assign-tasks",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.33
+    },
+    {
+      "source": "flow:stream-topology-execution",
+      "target": "step:stream-topology-execution:init-state-stores",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "flow:stream-topology-execution",
+      "target": "step:stream-topology-execution:start-threads",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.67
+    },
+    {
+      "source": "flow:stream-topology-execution",
+      "target": "step:stream-topology-execution:process-records",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.83
+    },
+    {
+      "source": "flow:stream-topology-execution",
+      "target": "step:stream-topology-execution:commit-offsets",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "source": "flow:connector-data-pipeline",
+      "target": "step:connector-data-pipeline:source-poll",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "source": "flow:connector-data-pipeline",
+      "target": "step:connector-data-pipeline:source-produces",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.4
+    },
+    {
+      "source": "flow:connector-data-pipeline",
+      "target": "step:connector-data-pipeline:sink-consumes",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "flow:connector-data-pipeline",
+      "target": "step:connector-data-pipeline:sink-transform",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "flow:connector-data-pipeline",
+      "target": "step:connector-data-pipeline:sink-writes",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "source": "flow:request-response-handling",
+      "target": "step:request-response-handling:accept-connection",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "source": "flow:request-response-handling",
+      "target": "step:request-response-handling:parse-request",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.4
+    },
+    {
+      "source": "flow:request-response-handling",
+      "target": "step:request-response-handling:authenticate",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "flow:request-response-handling",
+      "target": "step:request-response-handling:dispatch-request",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "flow:request-response-handling",
+      "target": "step:request-response-handling:send-response",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1.0
+    },
+    {
+      "source": "domain:event-streaming",
+      "target": "domain:replication-durability",
+      "type": "cross_domain",
+      "direction": "forward",
+      "description": "Event streaming depends on replicated storage for durability guarantees",
+      "weight": 0.9
+    },
+    {
+      "source": "domain:event-streaming",
+      "target": "domain:distributed-coordination",
+      "direction": "forward",
+      "type": "cross_domain",
+      "description": "Distributed coordination provides topic/partition metadata and broker endpoints",
+      "weight": 0.85
+    },
+    {
+      "source": "domain:event-streaming",
+      "target": "domain:client-communication",
+      "type": "cross_domain",
+      "direction": "forward",
+      "description": "Client communication enables producer/consumer network requests",
+      "weight": 0.9
+    },
+    {
+      "source": "domain:replication-durability",
+      "target": "domain:distributed-coordination",
+      "type": "cross_domain",
+      "direction": "forward",
+      "description": "Distributed coordination assigns replicas and elects partition leaders",
+      "weight": 0.9
+    },
+    {
+      "source": "domain:stream-processing",
+      "target": "domain:event-streaming",
+      "type": "cross_domain",
+      "direction": "forward",
+      "description": "Stream processing reads from and writes to event streaming topics",
+      "weight": 0.95
+    },
+    {
+      "source": "domain:stream-processing",
+      "target": "domain:distributed-coordination",
+      "type": "cross_domain",
+      "direction": "forward",
+      "description": "Distributed coordination manages consumer group state for stream applications",
+      "weight": 0.8
+    },
+    {
+      "source": "domain:data-integration",
+      "target": "domain:event-streaming",
+      "type": "cross_domain",
+      "direction": "forward",
+      "description": "Kafka Connect integrates external systems via event streaming topics",
+      "weight": 0.85
+    },
+    {
+      "source": "domain:data-integration",
+      "target": "domain:distributed-coordination",
+      "type": "cross_domain",
+      "direction": "forward",
+      "description": "Distributed coordination assigns connector tasks to workers and manages config",
+      "weight": 0.75
+    },
+    {
+      "source": "domain:client-communication",
+      "target": "domain:event-streaming",
+      "type": "cross_domain",
+      "direction": "forward",
+      "description": "All event streaming operations flow through network communication layer",
+      "weight": 0.95
+    }
+  ],
+  "layers": [],
+  "tour": []
+}
