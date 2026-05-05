@@ -1,0 +1,2471 @@
+{
+  "version": "1.0.0",
+  "project": {
+    "name": "apache-thrift",
+    "languages": [
+      "autotools",
+      "bison",
+      "c",
+      "cmake",
+      "cpp",
+      "csharp",
+      "d-lang",
+      "dart",
+      "delphi",
+      "erlang",
+      "flex",
+      "go",
+      "haxe",
+      "java",
+      "javascript",
+      "json",
+      "kotlin",
+      "lua",
+      "makefile",
+      "markdown",
+      "ocaml",
+      "perl",
+      "php",
+      "python",
+      "ruby",
+      "rust",
+      "shell",
+      "smalltalk",
+      "swift",
+      "thrift",
+      "toml",
+      "typescript",
+      "xml",
+      "yaml"
+    ],
+    "frameworks": [
+      "Autotools",
+      "CMake",
+      "Cargo",
+      "ESLint",
+      "GitHub Actions",
+      "Go Modules",
+      "Maven/Gradle"
+    ],
+    "description": "A lightweight, language-independent software stack for point-to-point RPC implementation with code generation across 28+ programming languages",
+    "analyzedAt": "2026-05-05T09:00:00.000Z",
+    "gitCommitHash": "c1710f06e13d8db9729f715a858e68df092ae14f"
+  },
+  "nodes": [
+    {
+      "id": "domain:idl-definition-compilation",
+      "type": "domain",
+      "name": "IDL Definition & Compilation",
+      "summary": "Covers authoring Thrift IDL (.thrift) files that define services, types, and constants, then compiling them into target-language source code via the C++ compiler. This is the primary entry point for any Thrift-based project.",
+      "tags": [
+        "compiler",
+        "idl",
+        "code-generation",
+        "ast",
+        "parser"
+      ],
+      "complexity": "complex",
+      "domainMeta": {
+        "entities": [
+          "ThriftProgram",
+          "ThriftService",
+          "ThriftType",
+          "ThriftEnum",
+          "ThriftStruct",
+          "Generator",
+          "GeneratorRegistry"
+        ],
+        "businessRules": [
+          "IDL must be parsed into a well-formed AST before code generation",
+          "Each target language requires a dedicated generator registered in the generator registry",
+          "Backward compatibility can be audited via the audit tool before releasing schema changes"
+        ],
+        "crossDomainInteractions": [
+          "Produces generated source consumed by every language runtime (Transport & Networking, Protocol & Serialization, Service & Server Execution)",
+          "IDL test schemas drive Cross-Language Testing"
+        ]
+      }
+    },
+    {
+      "id": "domain:transport-networking",
+      "type": "domain",
+      "name": "Transport & Networking",
+      "summary": "Handles the physical movement of bytes between Thrift clients and servers, abstracting over TCP sockets, framed streams, HTTP, TLS/SSL, WebSockets, and in-memory pipes. Each language library implements the same layered transport abstraction.",
+      "tags": [
+        "transport",
+        "networking",
+        "tcp",
+        "tls",
+        "http",
+        "websocket",
+        "framing"
+      ],
+      "complexity": "complex",
+      "domainMeta": {
+        "entities": [
+          "TTransport",
+          "TSocket",
+          "TFramedTransport",
+          "TBufferedTransport",
+          "TSSLSocket",
+          "THttpClient",
+          "TMemoryBuffer"
+        ],
+        "businessRules": [
+          "Transports are composable decorators (e.g., framing wraps socket)",
+          "TLS configuration must be supplied before connection is opened",
+          "HTTP transport reuses the underlying TCP socket per request"
+        ],
+        "crossDomainInteractions": [
+          "Sits below the Protocol layer; Protocol reads/writes through a Transport",
+          "Server layer manages transport lifecycle (accept, read, write, close)"
+        ]
+      }
+    },
+    {
+      "id": "domain:protocol-serialization",
+      "type": "domain",
+      "name": "Protocol & Serialization",
+      "summary": "Defines how Thrift data types are encoded and decoded on the wire. Provides Binary (compact binary), Compact (variable-length integer), JSON, and Simple JSON protocol implementations across all supported languages.",
+      "tags": [
+        "protocol",
+        "serialization",
+        "binary",
+        "compact",
+        "json",
+        "encoding"
+      ],
+      "complexity": "complex",
+      "domainMeta": {
+        "entities": [
+          "TProtocol",
+          "TBinaryProtocol",
+          "TCompactProtocol",
+          "TJSONProtocol",
+          "TSimpleJSONProtocol"
+        ],
+        "businessRules": [
+          "Client and server must agree on the same protocol to communicate",
+          "Compact protocol reduces payload size via variable-length integers",
+          "JSON protocol enables human-readable debugging but is larger on the wire"
+        ],
+        "crossDomainInteractions": [
+          "Reads/writes through a Transport; sits between Transport and Processor layers",
+          "Generated stubs (from IDL Compilation) call protocol read/write methods"
+        ]
+      }
+    },
+    {
+      "id": "domain:service-server-execution",
+      "type": "domain",
+      "name": "Service & Server Execution",
+      "summary": "Covers the runtime execution model for Thrift services: processor dispatch from generated stubs, and server concurrency models ranging from single-threaded simple servers to non-blocking event-loop servers. This domain governs how an RPC call is accepted, dispatched, and responded to.",
+      "tags": [
+        "server",
+        "processor",
+        "rpc",
+        "threading",
+        "nonblocking",
+        "service"
+      ],
+      "complexity": "complex",
+      "domainMeta": {
+        "entities": [
+          "TProcessor",
+          "TServer",
+          "TSimpleServer",
+          "TThreadedServer",
+          "TThreadPoolServer",
+          "TNonblockingServer",
+          "THttpServer"
+        ],
+        "businessRules": [
+          "Each server model requires at least a transport factory, protocol factory, and processor",
+          "TNonblockingServer requires libevent and uses a framed transport",
+          "TProcessor is generated per service by the IDL compiler"
+        ],
+        "crossDomainInteractions": [
+          "Depends on Transport & Networking to accept connections",
+          "Depends on Protocol & Serialization to decode requests and encode responses",
+          "Uses generated processors produced by IDL Compilation domain"
+        ]
+      }
+    },
+    {
+      "id": "domain:cross-language-runtime",
+      "type": "domain",
+      "name": "Cross-Language Runtime Support",
+      "summary": "Each supported language (Go, Java, Python, Ruby, C#/.NET, PHP, Erlang, Rust, Dart, Kotlin, TypeScript, and 17+ others) ships its own runtime library implementing the transport, protocol, and server abstractions. This domain governs the per-language implementations and their conformance to the Thrift specification.",
+      "tags": [
+        "runtime",
+        "multi-language",
+        "library",
+        "go",
+        "java",
+        "python",
+        "ruby",
+        "csharp",
+        "php",
+        "erlang",
+        "rust"
+      ],
+      "complexity": "complex",
+      "domainMeta": {
+        "entities": [
+          "GoThriftClient",
+          "JavaThriftClient",
+          "PythonThriftClient",
+          "RubyThriftClient",
+          "DotNetThriftClient",
+          "PHPThriftClient",
+          "ErlangThriftClient",
+          "RustThriftClient"
+        ],
+        "businessRules": [
+          "All language libraries must implement the same transport/protocol/server abstractions",
+          "Language-specific idioms are permitted within the common abstraction boundaries",
+          "New language libraries must pass cross-language integration tests before inclusion"
+        ],
+        "crossDomainInteractions": [
+          "Consumes generated stubs from IDL Compilation",
+          "Implements Transport & Networking and Protocol & Serialization contracts",
+          "Validated by Cross-Language Testing & Quality Assurance domain"
+        ]
+      }
+    },
+    {
+      "id": "domain:testing-quality-assurance",
+      "type": "domain",
+      "name": "Testing & Quality Assurance",
+      "summary": "Encompasses cross-language integration tests driven by shared IDL schemas (ThriftTest.thrift, DebugProtoTest.thrift), CI/CD pipelines via GitHub Actions and AppVeyor, Docker-based build environments, and backward-compatibility auditing. Ensures correctness and interoperability across all supported languages.",
+      "tags": [
+        "testing",
+        "ci-cd",
+        "cross-language",
+        "integration-test",
+        "docker",
+        "github-actions",
+        "compatibility"
+      ],
+      "complexity": "complex",
+      "domainMeta": {
+        "entities": [
+          "ThriftTestIDL",
+          "CrossLanguageTestRunner",
+          "KnownFailures",
+          "TLSKeyMaterials",
+          "DockerBuildImage",
+          "GitHubActionsWorkflow"
+        ],
+        "businessRules": [
+          "Every language pair must be tested for interoperability",
+          "Known failures are tracked and must not regress silently",
+          "TLS tests require pre-generated key materials checked into the repository"
+        ],
+        "crossDomainInteractions": [
+          "Exercises all runtime libraries (Cross-Language Runtime Support)",
+          "Uses IDL schemas produced in IDL Definition & Compilation domain",
+          "CI triggers on every PR targeting apache:master"
+        ]
+      }
+    },
+    {
+      "id": "flow:author-thrift-idl",
+      "type": "flow",
+      "name": "Author a Thrift IDL File",
+      "summary": "Developer writes a .thrift file defining namespaces, custom types (structs, enums, exceptions, unions), constants, and service methods that form the interface contract.",
+      "tags": [
+        "idl",
+        "schema",
+        "authoring"
+      ],
+      "complexity": "simple",
+      "domainMeta": {
+        "entryPoint": "Developer creates or edits a .thrift file",
+        "entryType": "manual"
+      }
+    },
+    {
+      "id": "flow:compile-idl-to-target",
+      "type": "flow",
+      "name": "Compile IDL to Target Language",
+      "summary": "Invokes the Thrift compiler CLI on a .thrift file, which parses it into an AST, resolves includes and type references, selects the appropriate code generator, and emits target-language source files.",
+      "tags": [
+        "compiler",
+        "code-generation",
+        "cli",
+        "ast"
+      ],
+      "complexity": "complex",
+      "domainMeta": {
+        "entryPoint": "thrift --gen <lang> <file.thrift>",
+        "entryType": "cli"
+      }
+    },
+    {
+      "id": "flow:audit-idl-compatibility",
+      "type": "flow",
+      "name": "Audit IDL Backward Compatibility",
+      "summary": "Uses the Thrift audit tool to compare two versions of a .thrift schema and detect breaking changes (removed fields, type changes, renamed services) before deployment.",
+      "tags": [
+        "audit",
+        "compatibility",
+        "schema-evolution"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "thrift --audit <old.thrift> <new.thrift>",
+        "entryType": "cli"
+      }
+    },
+    {
+      "id": "flow:establish-transport-connection",
+      "type": "flow",
+      "name": "Establish a Transport Connection",
+      "summary": "Client instantiates and opens a transport (socket, TLS, or HTTP), optionally wrapping it with framing or buffering decorators, to create a reliable byte channel to the server.",
+      "tags": [
+        "transport",
+        "connection",
+        "socket",
+        "tls"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "Client code calls transport.open()",
+        "entryType": "manual"
+      }
+    },
+    {
+      "id": "flow:send-receive-framed-data",
+      "type": "flow",
+      "name": "Send and Receive Framed Data",
+      "summary": "Writes a 4-byte length-prefixed frame containing an encoded RPC message over the transport, and reads the corresponding response frame from the server.",
+      "tags": [
+        "framing",
+        "transport",
+        "framed-transport"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "Protocol flushes to TFramedTransport",
+        "entryType": "event"
+      }
+    },
+    {
+      "id": "flow:configure-tls-transport",
+      "type": "flow",
+      "name": "Configure TLS/SSL Transport",
+      "summary": "Loads certificates and private keys, configures cipher suites and peer verification, and wraps a plain socket with TLS to produce an encrypted, authenticated channel.",
+      "tags": [
+        "tls",
+        "ssl",
+        "security",
+        "certificates"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "Client or server initializes TSSLSocket/TSSLServerSocket",
+        "entryType": "manual"
+      }
+    },
+    {
+      "id": "flow:serialize-rpc-message",
+      "type": "flow",
+      "name": "Serialize an RPC Message",
+      "summary": "Generated client stub calls protocol write methods to encode a method call (name, sequence ID, argument struct) using the configured protocol (Binary, Compact, or JSON) into the transport buffer.",
+      "tags": [
+        "serialization",
+        "protocol",
+        "binary",
+        "compact",
+        "json"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "Generated stub calls protocol.writeMessageBegin()",
+        "entryType": "event"
+      }
+    },
+    {
+      "id": "flow:deserialize-rpc-response",
+      "type": "flow",
+      "name": "Deserialize an RPC Response",
+      "summary": "Client reads and decodes the protocol-encoded response message from the transport buffer, extracts the return value or exception struct, and returns the result to the caller.",
+      "tags": [
+        "deserialization",
+        "protocol",
+        "response"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "Generated stub calls protocol.readMessageBegin() after transport flush",
+        "entryType": "event"
+      }
+    },
+    {
+      "id": "flow:select-wire-protocol",
+      "type": "flow",
+      "name": "Select and Configure Wire Protocol",
+      "summary": "Developer or operator chooses between Binary, Compact, or JSON protocols and supplies the chosen protocol factory to the server and client, ensuring both sides agree on encoding.",
+      "tags": [
+        "protocol",
+        "configuration",
+        "binary",
+        "compact",
+        "json"
+      ],
+      "complexity": "simple",
+      "domainMeta": {
+        "entryPoint": "Instantiation of TProtocolFactory",
+        "entryType": "manual"
+      }
+    },
+    {
+      "id": "flow:start-thrift-server",
+      "type": "flow",
+      "name": "Start a Thrift Server",
+      "summary": "Assembles a TServer with a processor, transport, protocol factories, and concurrency configuration, then calls serve() to begin accepting and handling client connections.",
+      "tags": [
+        "server",
+        "startup",
+        "threading",
+        "processor"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "server.serve() call in application main",
+        "entryType": "manual"
+      }
+    },
+    {
+      "id": "flow:handle-rpc-call",
+      "type": "flow",
+      "name": "Handle an Inbound RPC Call",
+      "summary": "Server transport accepts a connection, the processor reads and decodes the request using the protocol, dispatches to the service handler implementation, and writes the response back through the protocol and transport.",
+      "tags": [
+        "rpc",
+        "processor",
+        "dispatch",
+        "handler"
+      ],
+      "complexity": "complex",
+      "domainMeta": {
+        "entryPoint": "Inbound TCP connection accepted by server transport",
+        "entryType": "event"
+      }
+    },
+    {
+      "id": "flow:configure-nonblocking-server",
+      "type": "flow",
+      "name": "Configure a Non-Blocking Server",
+      "summary": "Sets up TNonblockingServer (C++) with libevent, framed transport, thread-pool task queue, and I/O threads to achieve high-throughput event-driven request handling.",
+      "tags": [
+        "nonblocking",
+        "libevent",
+        "threadpool",
+        "performance"
+      ],
+      "complexity": "complex",
+      "domainMeta": {
+        "entryPoint": "TNonblockingServer instantiation with thread manager",
+        "entryType": "manual"
+      }
+    },
+    {
+      "id": "flow:implement-go-service",
+      "type": "flow",
+      "name": "Implement a Thrift Service in Go",
+      "summary": "Uses the Go runtime library to create a client or server: instantiates socket/framed transports, binary or compact protocol, and runs a TSimpleServer or goroutine-based server backed by generated Go stubs.",
+      "tags": [
+        "go",
+        "runtime",
+        "client",
+        "server"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "go get and import thrift package in Go project",
+        "entryType": "manual"
+      }
+    },
+    {
+      "id": "flow:implement-java-service",
+      "type": "flow",
+      "name": "Implement a Thrift Service in Java",
+      "summary": "Uses the Java runtime library (Maven/Gradle dependency) with generated Java stubs to build clients and servers, leveraging TThreadPoolServer or TNonblockingServer for production use.",
+      "tags": [
+        "java",
+        "runtime",
+        "maven",
+        "gradle",
+        "client",
+        "server"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "Add libthrift dependency to Maven/Gradle project",
+        "entryType": "manual"
+      }
+    },
+    {
+      "id": "flow:implement-python-service",
+      "type": "flow",
+      "name": "Implement a Thrift Service in Python",
+      "summary": "Uses the Python runtime library (pip install thrift) with generated Python stubs. Supports pure-Python and C-accelerated protocol implementations with TSimpleServer or TThreadedServer.",
+      "tags": [
+        "python",
+        "runtime",
+        "pip",
+        "client",
+        "server"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "pip install thrift; import thrift in Python project",
+        "entryType": "manual"
+      }
+    },
+    {
+      "id": "flow:implement-dotnet-service",
+      "type": "flow",
+      "name": "Implement a Thrift Service in .NET",
+      "summary": "Uses the .NET Standard runtime library with async transport and protocol implementations. Generated C# stubs integrate with the async server model for modern .NET applications.",
+      "tags": [
+        "csharp",
+        "dotnet",
+        "async",
+        "runtime",
+        "client",
+        "server"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "NuGet package reference to Apache.Thrift",
+        "entryType": "manual"
+      }
+    },
+    {
+      "id": "flow:implement-nodejs-service",
+      "type": "flow",
+      "name": "Implement a Thrift Service in Node.js/TypeScript",
+      "summary": "Uses the Node.js or TypeScript runtime library with WebSocket or HTTP transport support. Generated TypeScript stubs provide type-safe clients and server skeletons.",
+      "tags": [
+        "nodejs",
+        "typescript",
+        "websocket",
+        "http",
+        "runtime"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "npm install thrift; require('thrift') in Node.js project",
+        "entryType": "manual"
+      }
+    },
+    {
+      "id": "flow:run-cross-language-tests",
+      "type": "flow",
+      "name": "Run Cross-Language Integration Tests",
+      "summary": "Executes the cross-language test suite using ThriftTest.thrift and DebugProtoTest.thrift: starts server processes in each language and runs client tests against them for all protocol/transport combinations.",
+      "tags": [
+        "integration-test",
+        "cross-language",
+        "test-runner"
+      ],
+      "complexity": "complex",
+      "domainMeta": {
+        "entryPoint": "make cross (or test/test.py invocation)",
+        "entryType": "cli"
+      }
+    },
+    {
+      "id": "flow:ci-pipeline-validation",
+      "type": "flow",
+      "name": "CI Pipeline Validation",
+      "summary": "GitHub Actions and AppVeyor workflows trigger on every pull request to build all language libraries, run unit and integration tests in Docker containers, and report results before merge.",
+      "tags": [
+        "ci",
+        "github-actions",
+        "appveyor",
+        "docker",
+        "pull-request"
+      ],
+      "complexity": "moderate",
+      "domainMeta": {
+        "entryPoint": "Pull request opened against apache:master",
+        "entryType": "event"
+      }
+    },
+    {
+      "id": "flow:track-known-failures",
+      "type": "flow",
+      "name": "Track and Manage Known Test Failures",
+      "summary": "Maintains a known-failures list for cross-language test combinations that are not yet passing, preventing noise in CI while still tracking open issues for eventual resolution.",
+      "tags": [
+        "known-failures",
+        "test-management",
+        "ci"
+      ],
+      "complexity": "simple",
+      "domainMeta": {
+        "entryPoint": "Update known_failures file when a test combination is broken",
+        "entryType": "manual"
+      }
+    },
+    {
+      "id": "step:author-thrift-idl:define-namespaces",
+      "type": "step",
+      "name": "Define Namespaces",
+      "summary": "Declare per-language namespaces (e.g., namespace cpp tutorial, namespace java org.example) to control generated package/module names in each target language.",
+      "tags": [
+        "namespace",
+        "idl"
+      ],
+      "complexity": "simple",
+      "filePath": "tutorial/tutorial.thrift",
+      "lineRange": [
+        1,
+        30
+      ]
+    },
+    {
+      "id": "step:author-thrift-idl:declare-types",
+      "type": "step",
+      "name": "Declare Types (Structs, Enums, Exceptions)",
+      "summary": "Define the data model using struct, enum, exception, and union keywords. Fields have integer IDs (for wire compatibility) and optional/required qualifiers.",
+      "tags": [
+        "struct",
+        "enum",
+        "exception",
+        "types"
+      ],
+      "complexity": "moderate",
+      "filePath": "test/ThriftTest.thrift",
+      "lineRange": [
+        1,
+        100
+      ]
+    },
+    {
+      "id": "step:author-thrift-idl:define-services",
+      "type": "step",
+      "name": "Define Service Methods",
+      "summary": "Declare service interfaces with typed method signatures, including oneway methods (fire-and-forget), throws clauses for exception types, and return types.",
+      "tags": [
+        "service",
+        "methods",
+        "oneway"
+      ],
+      "complexity": "moderate",
+      "filePath": "tutorial/tutorial.thrift",
+      "lineRange": [
+        50,
+        100
+      ]
+    },
+    {
+      "id": "step:author-thrift-idl:define-constants",
+      "type": "step",
+      "name": "Define Constants",
+      "summary": "Use the const keyword to declare typed constants that are emitted as language-native constants in generated code, enabling shared configuration values across clients and servers.",
+      "tags": [
+        "constants",
+        "idl"
+      ],
+      "complexity": "simple",
+      "filePath": "test/ConstantsDemo.thrift",
+      "lineRange": [
+        1,
+        50
+      ]
+    },
+    {
+      "id": "step:compile-idl-to-target:parse-cli-args",
+      "type": "step",
+      "name": "Parse CLI Arguments",
+      "summary": "main.cc parses the --gen <lang> flag, include paths (-I), output directory (-o), and other compiler options from the command line.",
+      "tags": [
+        "cli",
+        "arguments",
+        "compiler"
+      ],
+      "complexity": "simple",
+      "filePath": "compiler/cpp/src/thrift/main.cc",
+      "lineRange": [
+        1,
+        80
+      ]
+    },
+    {
+      "id": "step:compile-idl-to-target:lex-parse-idl",
+      "type": "step",
+      "name": "Lex and Parse IDL with Flex/Bison",
+      "summary": "The Flex lexer tokenises the .thrift source, and the Bison parser constructs an AST rooted at t_program, resolving includes recursively.",
+      "tags": [
+        "flex",
+        "bison",
+        "lexer",
+        "parser",
+        "ast"
+      ],
+      "complexity": "complex",
+      "filePath": "compiler/cpp/src/thrift/thrifty.yy",
+      "lineRange": [
+        1,
+        50
+      ]
+    },
+    {
+      "id": "step:compile-idl-to-target:validate-ast",
+      "type": "step",
+      "name": "Validate and Resolve AST",
+      "summary": "Post-parse validation resolves type references across includes, checks for duplicate field IDs, validates identifier uniqueness, and applies default values.",
+      "tags": [
+        "validation",
+        "ast",
+        "type-resolution"
+      ],
+      "complexity": "moderate",
+      "filePath": "compiler/cpp/src/thrift/parse/t_program.h",
+      "lineRange": [
+        1,
+        50
+      ]
+    },
+    {
+      "id": "step:compile-idl-to-target:lookup-generator",
+      "type": "step",
+      "name": "Lookup Code Generator",
+      "summary": "The compiler queries the generator registry (t_generator_registry) with the target language name to instantiate the appropriate t_generator subclass.",
+      "tags": [
+        "generator-registry",
+        "code-generation"
+      ],
+      "complexity": "simple",
+      "filePath": "compiler/cpp/src/thrift/generate/t_generator_registry.h",
+      "lineRange": [
+        1,
+        50
+      ]
+    },
+    {
+      "id": "step:compile-idl-to-target:emit-target-code",
+      "type": "step",
+      "name": "Emit Target-Language Source Files",
+      "summary": "The selected generator traverses the AST and writes out language-specific source files: type definitions, service clients, processor stubs, and constants.",
+      "tags": [
+        "code-generation",
+        "emit",
+        "generator"
+      ],
+      "complexity": "complex",
+      "filePath": "compiler/cpp/src/thrift/generate/t_generator.h",
+      "lineRange": [
+        1,
+        80
+      ]
+    },
+    {
+      "id": "step:audit-idl-compatibility:load-both-schemas",
+      "type": "step",
+      "name": "Load Old and New Schema ASTs",
+      "summary": "The audit tool parses both the old and new .thrift files into separate ASTs for structural comparison.",
+      "tags": [
+        "audit",
+        "ast",
+        "schema"
+      ],
+      "complexity": "simple",
+      "filePath": "compiler/cpp/src/thrift/audit/t_audit.cpp",
+      "lineRange": [
+        1,
+        50
+      ]
+    },
+    {
+      "id": "step:audit-idl-compatibility:compare-type-changes",
+      "type": "step",
+      "name": "Compare Type and Field Changes",
+      "summary": "Detects removed fields, changed field types, new required fields without defaults, and renamed service methods that would break wire compatibility.",
+      "tags": [
+        "audit",
+        "compatibility",
+        "fields",
+        "types"
+      ],
+      "complexity": "moderate",
+      "filePath": "compiler/cpp/src/thrift/audit/t_audit.cpp",
+      "lineRange": [
+        50,
+        150
+      ]
+    },
+    {
+      "id": "step:audit-idl-compatibility:report-breaking-changes",
+      "type": "step",
+      "name": "Report Breaking Changes",
+      "summary": "Outputs a human-readable report of detected backward-incompatible changes, allowing developers to make informed decisions before deploying schema updates.",
+      "tags": [
+        "audit",
+        "report",
+        "breaking-changes"
+      ],
+      "complexity": "simple",
+      "filePath": "compiler/cpp/src/thrift/audit/t_audit.cpp",
+      "lineRange": [
+        150,
+        200
+      ]
+    },
+    {
+      "id": "step:establish-transport-connection:instantiate-socket",
+      "type": "step",
+      "name": "Instantiate Socket Transport",
+      "summary": "Create a TSocket (or TSSLSocket) with host and port, which wraps a POSIX or OS socket file descriptor.",
+      "tags": [
+        "socket",
+        "tcp",
+        "transport"
+      ],
+      "complexity": "simple",
+      "filePath": "lib/cpp/src/thrift/transport/TSocket.cpp",
+      "lineRange": [
+        1,
+        60
+      ]
+    },
+    {
+      "id": "step:establish-transport-connection:wrap-with-decorators",
+      "type": "step",
+      "name": "Wrap Transport with Decorators",
+      "summary": "Optionally wrap the base socket with TBufferedTransport (in-memory buffering) and/or TFramedTransport (length-prefix framing) using the decorator pattern.",
+      "tags": [
+        "framing",
+        "buffering",
+        "decorator"
+      ],
+      "complexity": "simple",
+      "filePath": "lib/cpp/src/thrift/transport/TFramedTransport.cpp",
+      "lineRange": [
+        1,
+        60
+      ]
+    },
+    {
+      "id": "step:establish-transport-connection:open-connection",
+      "type": "step",
+      "name": "Open the Connection",
+      "summary": "Call transport.open() which performs the TCP connect (or TLS handshake if using TSSLSocket), making the channel ready for protocol read/write operations.",
+      "tags": [
+        "connect",
+        "open",
+        "transport"
+      ],
+      "complexity": "simple",
+      "filePath": "lib/cpp/src/thrift/transport/TSocket.cpp",
+      "lineRange": [
+        60,
+        130
+      ]
+    },
+    {
+      "id": "step:send-receive-framed-data:write-frame-header",
+      "type": "step",
+      "name": "Write 4-Byte Frame Length Header",
+      "summary": "TFramedTransport prepends the serialized message size as a big-endian 32-bit integer before writing the message body to the underlying transport.",
+      "tags": [
+        "framing",
+        "header",
+        "length-prefix"
+      ],
+      "complexity": "simple",
+      "filePath": "lib/cpp/src/thrift/transport/TFramedTransport.cpp",
+      "lineRange": [
+        60,
+        110
+      ]
+    },
+    {
+      "id": "step:send-receive-framed-data:flush-to-wire",
+      "type": "step",
+      "name": "Flush Message to Wire",
+      "summary": "The transport flushes its write buffer, pushing the complete framed message through the socket to the remote endpoint.",
+      "tags": [
+        "flush",
+        "write",
+        "transport"
+      ],
+      "complexity": "simple",
+      "filePath": "lib/cpp/src/thrift/transport/TSocket.cpp",
+      "lineRange": [
+        130,
+        180
+      ]
+    },
+    {
+      "id": "step:send-receive-framed-data:read-response-frame",
+      "type": "step",
+      "name": "Read Response Frame",
+      "summary": "Client reads the 4-byte length header, then reads exactly that many bytes to obtain the complete response frame for protocol decoding.",
+      "tags": [
+        "framing",
+        "read",
+        "response"
+      ],
+      "complexity": "simple",
+      "filePath": "lib/cpp/src/thrift/transport/TFramedTransport.cpp",
+      "lineRange": [
+        110,
+        160
+      ]
+    },
+    {
+      "id": "step:configure-tls-transport:load-certificates",
+      "type": "step",
+      "name": "Load Certificates and Private Key",
+      "summary": "Configure TSSLSocket/TSSLServerSocket with paths to the CA certificate bundle, entity certificate, and private key file for mutual or server-only TLS authentication.",
+      "tags": [
+        "tls",
+        "certificates",
+        "pki"
+      ],
+      "complexity": "moderate",
+      "filePath": "lib/cpp/src/thrift/transport/TSSLSocket.cpp",
+      "lineRange": [
+        1,
+        80
+      ]
+    },
+    {
+      "id": "step:configure-tls-transport:set-cipher-policy",
+      "type": "step",
+      "name": "Set Cipher Suite and Verification Policy",
+      "summary": "Select allowed cipher suites, minimum TLS protocol version, and peer verification mode (none, optional, or require) to enforce the desired security posture.",
+      "tags": [
+        "tls",
+        "cipher",
+        "security-policy"
+      ],
+      "complexity": "moderate",
+      "filePath": "lib/cpp/src/thrift/transport/TSSLSocket.cpp",
+      "lineRange": [
+        80,
+        160
+      ]
+    },
+    {
+      "id": "step:configure-tls-transport:perform-handshake",
+      "type": "step",
+      "name": "Perform TLS Handshake",
+      "summary": "On open(), the TSSLSocket executes the OpenSSL handshake, exchanging certificates and negotiating session keys before any application data is sent.",
+      "tags": [
+        "tls",
+        "handshake",
+        "openssl"
+      ],
+      "complexity": "moderate",
+      "filePath": "lib/cpp/src/thrift/transport/TSSLSocket.cpp",
+      "lineRange": [
+        160,
+        230
+      ]
+    },
+    {
+      "id": "step:serialize-rpc-message:write-message-begin",
+      "type": "step",
+      "name": "Write Message Header",
+      "summary": "Protocol writes the message header containing the method name, message type (call/oneway), and sequence ID to identify the RPC call on the wire.",
+      "tags": [
+        "protocol",
+        "serialization",
+        "message-header"
+      ],
+      "complexity": "simple",
+      "filePath": "lib/cpp/src/thrift/protocol/TBinaryProtocol.h",
+      "lineRange": [
+        1,
+        50
+      ]
+    },
+    {
+      "id": "step:serialize-rpc-message:write-argument-struct",
+      "type": "step",
+      "name": "Write Argument Struct",
+      "summary": "The generated client stub calls the auto-generated argument struct's write() method, which encodes each field with its type tag and field ID using the protocol.",
+      "tags": [
+        "protocol",
+        "struct",
+        "arguments",
+        "serialization"
+      ],
+      "complexity": "moderate",
+      "filePath": "lib/cpp/src/thrift/protocol/TBinaryProtocol.h",
+      "lineRange": [
+        50,
+        120
+      ]
+    },
+    {
+      "id": "step:serialize-rpc-message:flush-protocol",
+      "type": "step",
+      "name": "Flush Protocol Buffer",
+      "summary": "Call protocol.getTransport().flush() to push the fully-encoded message through the transport stack to the remote endpoint.",
+      "tags": [
+        "protocol",
+        "flush",
+        "transport"
+      ],
+      "complexity": "simple",
+      "filePath": "lib/cpp/src/thrift/protocol/TProtocol.h",
+      "lineRange": [
+        1,
+        50
+      ]
+    },
+    {
+      "id": "step:deserialize-rpc-response:read-message-begin",
+      "type": "step",
+      "name": "Read Message Header",
+      "summary": "Protocol reads the response message header, verifying the sequence ID and message type (reply vs exception) to detect protocol errors or mismatches.",
+      "tags": [
+        "protocol",
+        "deserialization",
+        "message-header"
+      ],
+      "complexity": "simple",
+      "filePath": "lib/cpp/src/thrift/protocol/TBinaryProtocol.h",
+      "lineRange": [
+        120,
+        160
+      ]
+    },
+    {
+      "id": "step:deserialize-rpc-response:read-result-struct",
+      "type": "step",
+      "name": "Read Result Struct",
+      "summary": "The generated result struct's read() method decodes each field by type tag and field ID, populating the return value or exception fields.",
+      "tags": [
+        "protocol",
+        "deserialization",
+        "result",
+        "struct"
+      ],
+      "complexity": "moderate",
+      "filePath": "lib/cpp/src/thrift/protocol/TBinaryProtocol.h",
+      "lineRange": [
+        160,
+        220
+      ]
+    },
+    {
+      "id": "step:deserialize-rpc-response:throw-or-return",
+      "type": "step",
+      "name": "Throw Exception or Return Value",
+      "summary": "If the result struct contains an exception field, it is thrown; otherwise the return value field is extracted and returned to the calling application code.",
+      "tags": [
+        "exception",
+        "return-value",
+        "result"
+      ],
+      "complexity": "simple",
+      "filePath": "lib/cpp/src/thrift/protocol/TProtocol.h",
+      "lineRange": [
+        50,
+        100
+      ]
+    },
+    {
+      "id": "step:select-wire-protocol:choose-protocol-factory",
+      "type": "step",
+      "name": "Instantiate Protocol Factory",
+      "summary": "Instantiate TBinaryProtocolFactory, TCompactProtocolFactory, or TJSONProtocolFactory to be passed to both client and server during setup.",
+      "tags": [
+        "protocol-factory",
+        "configuration"
+      ],
+      "complexity": "simple",
+      "filePath": "lib/cpp/src/thrift/protocol/TBinaryProtocol.h",
+      "lineRange": [
+        1,
+        30
+      ]
+    },
+    {
+      "id": "step:select-wire-protocol:supply-to-server",
+      "type": "step",
+      "name": "Supply Protocol Factory to Server",
+      "summary": "Pass the protocol factory to the TServer constructor so every accepted connection uses the chosen protocol for encoding and decoding messages.",
+      "tags": [
+        "server",
+        "protocol-factory",
+        "configuration"
+      ],
+      "complexity": "simple",
+      "filePath": "lib/cpp/src/thrift/server/TSimpleServer.h",
+      "lineRange": [
+        1,
+        50
+      ]
+    },
+    {
+      "id": "step:select-wire-protocol:supply-to-client",
+      "type": "step",
+      "name": "Supply Protocol to Client",
+      "summary": "Wrap the client transport with the chosen protocol instance and pass to the generated client class constructor for outbound call encoding.",
+      "tags": [
+        "client",
+        "protocol",
+        "configuration"
+      ],
+      "complexity": "simple",
+      "filePath": "lib/cpp/src/thrift/protocol/TProtocol.h",
+      "lineRange": [
+        1,
+        50
+      ]
+    },
+    {
+      "id": "step:start-thrift-server:assemble-server-components",
+      "type": "step",
+      "name": "Assemble Server Components",
+      "summary": "Instantiate a server socket (TServerSocket), transport factory (TFramedTransportFactory), protocol factory, and the service processor (generated TProcessor subclass).",
+      "tags": [
+        "server",
+        "assembly",
+        "processor",
+        "factory"
+      ],
+      "complexity": "moderate",
+      "filePath": "lib/cpp/src/thrift/server/TSimpleServer.h",
+      "lineRange": [
+        1,
+        60
+      ]
+    },
+    {
+      "id": "step:start-thrift-server:configure-concurrency",
+      "type": "step",
+      "name": "Configure Concurrency Model",
+      "summary": "Choose between TSimpleServer (single-threaded), TThreadedServer (thread-per-connection), TThreadPoolServer (bounded pool), or TNonblockingServer (event-loop) based on throughput requirements.",
+      "tags": [
+        "concurrency",
+        "threading",
+        "server-model"
+      ],
+      "complexity": "moderate",
+      "filePath": "lib/cpp/src/thrift/server/TThreadedServer.h",
+      "lineRange": [
+        1,
+        60
+      ]
+    },
+    {
+      "id": "step:start-thrift-server:call-serve",
+      "type": "step",
+      "name": "Call serve() to Accept Connections",
+      "summary": "Invoke server.serve() which blocks the calling thread (or enters an event loop) and begins accepting client connections, dispatching them to the processor.",
+      "tags": [
+        "serve",
+        "accept",
+        "event-loop"
+      ],
+      "complexity": "simple",
+      "filePath": "lib/cpp/src/thrift/server/TSimpleServer.h",
+      "lineRange": [
+        60,
+        100
+      ]
+    },
+    {
+      "id": "step:handle-rpc-call:accept-connection",
+      "type": "step",
+      "name": "Accept Inbound Connection",
+      "summary": "The server transport accepts a new TCP connection, creating a per-connection client transport and handing it to the server's connection handler.",
+      "tags": [
+        "accept",
+        "connection",
+        "transport"
+      ],
+      "complexity": "simple",
+      "filePath": "lib/cpp/src/thrift/transport/TServerSocket.cpp",
+      "lineRange": [
+        1,
+        60
+      ]
+    },
+    {
+      "id": "step:handle-rpc-call:read-decode-request",
+      "type": "step",
+      "name": "Read and Decode Request",
+      "summary": "The processor reads the message header and argument struct from the protocol, identifying which service method was called and its input arguments.",
+      "tags": [
+        "processor",
+        "decode",
+        "request",
+        "protocol"
+      ],
+      "complexity": "moderate",
+      "filePath": "lib/cpp/src/thrift/TProcessor.h",
+      "lineRange": [
+        1,
+        50
+      ]
+    },
+    {
+      "id": "step:handle-rpc-call:dispatch-to-handler",
+      "type": "step",
+      "name": "Dispatch to Service Handler",
+      "summary": "The generated processor maps the method name to the corresponding handler implementation method and invokes it with the decoded arguments.",
+      "tags": [
+        "dispatch",
+        "handler",
+        "processor"
+      ],
+      "complexity": "moderate",
+      "filePath": "lib/cpp/src/thrift/TProcessor.h",
+      "lineRange": [
+        50,
+        100
+      ]
+    },
+    {
+      "id": "step:handle-rpc-call:encode-send-response",
+      "type": "step",
+      "name": "Encode and Send Response",
+      "summary": "The processor writes the result struct (or exception) back through the protocol and flushes the transport to deliver the response to the client.",
+      "tags": [
+        "response",
+        "encode",
+        "protocol",
+        "flush"
+      ],
+      "complexity": "moderate",
+      "filePath": "lib/cpp/src/thrift/TProcessor.h",
+      "lineRange": [
+        100,
+        150
+      ]
+    },
+    {
+      "id": "step:configure-nonblocking-server:setup-libevent",
+      "type": "step",
+      "name": "Initialize libevent Event Base",
+      "summary": "TNonblockingServer creates a libevent event_base to drive the I/O event loop, registering the server socket for accept events.",
+      "tags": [
+        "libevent",
+        "event-loop",
+        "nonblocking"
+      ],
+      "complexity": "moderate",
+      "filePath": "lib/cpp/src/thrift/server/TNonblockingServer.h",
+      "lineRange": [
+        1,
+        60
+      ]
+    },
+    {
+      "id": "step:configure-nonblocking-server:configure-thread-manager",
+      "type": "step",
+      "name": "Configure Thread Manager",
+      "summary": "Set up a PosixThreadFactory and ThreadManager with the desired worker thread count to handle CPU-bound request processing off the I/O event threads.",
+      "tags": [
+        "thread-manager",
+        "thread-pool",
+        "nonblocking"
+      ],
+      "complexity": "moderate",
+      "filePath": "lib/cpp/src/thrift/server/TNonblockingServer.h",
+      "lineRange": [
+        60,
+        130
+      ]
+    },
+    {
+      "id": "step:configure-nonblocking-server:start-io-threads",
+      "type": "step",
+      "name": "Start I/O Threads",
+      "summary": "TNonblockingServer spawns one or more I/O threads, each running its own libevent loop, to multiplex many concurrent connections without blocking.",
+      "tags": [
+        "io-threads",
+        "event-loop",
+        "concurrency"
+      ],
+      "complexity": "moderate",
+      "filePath": "lib/cpp/src/thrift/server/TNonblockingServer.h",
+      "lineRange": [
+        130,
+        200
+      ]
+    },
+    {
+      "id": "step:implement-go-service:add-go-module-dep",
+      "type": "step",
+      "name": "Add Go Module Dependency",
+      "summary": "Add github.com/apache/thrift to go.mod and run go get to fetch the Go runtime library package.",
+      "tags": [
+        "go",
+        "modules",
+        "dependency"
+      ],
+      "complexity": "simple",
+      "filePath": "lib/go/thrift/socket.go",
+      "lineRange": [
+        1,
+        30
+      ]
+    },
+    {
+      "id": "step:implement-go-service:generate-go-stubs",
+      "type": "step",
+      "name": "Generate Go Stubs",
+      "summary": "Run thrift --gen go on the .thrift file to produce Go client, processor, and type files in the output directory.",
+      "tags": [
+        "go",
+        "code-generation",
+        "stubs"
+      ],
+      "complexity": "simple",
+      "filePath": "compiler/cpp/src/thrift/generate/t_go_generator.cc",
+      "lineRange": [
+        1,
+        50
+      ]
+    },
+    {
+      "id": "step:implement-go-service:create-go-client-server",
+      "type": "step",
+      "name": "Create Go Client or Server",
+      "summary": "Instantiate thrift.NewTSocket, wrap with thrift.NewTFramedTransport, create a thrift.TBinaryProtocol, and use generated client/server structs to make calls or serve requests.",
+      "tags": [
+        "go",
+        "client",
+        "server",
+        "runtime"
+      ],
+      "complexity": "moderate",
+      "filePath": "lib/go/thrift/simple_server.go",
+      "lineRange": [
+        1,
+        60
+      ]
+    },
+    {
+      "id": "step:implement-java-service:add-maven-dep",
+      "type": "step",
+      "name": "Add Maven/Gradle Dependency",
+      "summary": "Add the org.apache.thrift:libthrift artifact to pom.xml or build.gradle to include the Java runtime library.",
+      "tags": [
+        "java",
+        "maven",
+        "gradle",
+        "dependency"
+      ],
+      "complexity": "simple",
+      "filePath": "lib/java/src/main/java/org/apache/thrift/transport/TSocket.java",
+      "lineRange": [
+        1,
+        30
+      ]
+    },
+    {
+      "id": "step:implement-java-service:generate-java-stubs",
+      "type": "step",
+      "name": "Generate Java Stubs",
+      "summary": "Run thrift --gen java on the .thrift file. The Java generator emits Iface and Client classes per service, plus Java type classes for structs and enums.",
+      "tags": [
+        "java",
+        "code-generation",
+        "stubs"
+      ],
+      "complexity": "simple",
+      "filePath": "compiler/cpp/src/thrift/generate/t_java_generator.cc",
+      "lineRange": [
+        1,
+        50
+      ]
+    },
+    {
+      "id": "step:implement-java-service:build-java-server",
+      "type": "step",
+      "name": "Build and Start Java Server",
+      "summary": "Implement the service Iface, construct a TServer with transport/protocol factories and the generated processor, and call server.serve() to begin handling requests.",
+      "tags": [
+        "java",
+        "server",
+        "processor",
+        "serve"
+      ],
+      "complexity": "moderate",
+      "filePath": "lib/java/src/main/java/org/apache/thrift/server/TSimpleServer.java",
+      "lineRange": [
+        1,
+        60
+      ]
+    },
+    {
+      "id": "step:implement-python-service:install-pip-package",
+      "type": "step",
+      "name": "Install Python Thrift Package",
+      "summary": "Run pip install thrift to install the Python runtime library, which includes both the pure-Python and optional C-accelerated protocol implementations.",
+      "tags": [
+        "python",
+        "pip",
+        "install"
+      ],
+      "complexity": "simple",
+      "filePath": "lib/py/src/thrift/transport/TSocket.py",
+      "lineRange": [
+        1,
+        30
+      ]
+    },
+    {
+      "id": "step:implement-python-service:generate-python-stubs",
+      "type": "step",
+      "name": "Generate Python Stubs",
+      "summary": "Run thrift --gen py on the .thrift file to produce Python modules for types, service clients, and server-side Iface/Processor classes.",
+      "tags": [
+        "python",
+        "code-generation",
+        "stubs"
+      ],
+      "complexity": "simple",
+      "filePath": "compiler/cpp/src/thrift/generate/t_py_generator.cc",
+      "lineRange": [
+        1,
+        50
+      ]
+    },
+    {
+      "id": "step:implement-python-service:run-python-server",
+      "type": "step",
+      "name": "Run Python Server or Client",
+      "summary": "Instantiate TSocket, optionally wrap with TBufferedTransport/TFramedTransport, create a TBinaryProtocol, and use the generated client or TServer/TProcessor to handle calls.",
+      "tags": [
+        "python",
+        "server",
+        "client",
+        "runtime"
+      ],
+      "complexity": "moderate",
+      "filePath": "lib/py/src/thrift/server/TServer.py",
+      "lineRange": [
+        1,
+        60
+      ]
+    },
+    {
+      "id": "step:implement-dotnet-service:add-nuget-dep",
+      "type": "step",
+      "name": "Add NuGet Package Reference",
+      "summary": "Reference the Apache.Thrift NuGet package in the .csproj file to bring in the .NET Standard runtime library with async transport and protocol support.",
+      "tags": [
+        "csharp",
+        "nuget",
+        "dependency",
+        "dotnet"
+      ],
+      "complexity": "simple",
+      "filePath": "lib/netstd/Thrift/Transport/Client/TSocketTransport.cs",
+      "lineRange": [
+        1,
+        30
+      ]
+    },
+    {
+      "id": "step:implement-dotnet-service:generate-csharp-stubs",
+      "type": "step",
+      "name": "Generate C# Stubs",
+      "summary": "Run thrift --gen netstd on the .thrift file to produce async C# interfaces, client classes, and processor stubs targeting .NET Standard.",
+      "tags": [
+        "csharp",
+        "code-generation",
+        "netstd"
+      ],
+      "complexity": "simple",
+      "filePath": "compiler/cpp/src/thrift/generate/t_netstd_generator.cc",
+      "lineRange": [
+        1,
+        50
+      ]
+    },
+    {
+      "id": "step:implement-dotnet-service:host-async-server",
+      "type": "step",
+      "name": "Host Async .NET Server",
+      "summary": "Implement the async service interface, create a TServer with async transport/protocol factories, and use async/await patterns throughout the request handling pipeline.",
+      "tags": [
+        "csharp",
+        "async",
+        "server",
+        "dotnet"
+      ],
+      "complexity": "moderate",
+      "filePath": "lib/netstd/Thrift/Server/TSimpleAsyncServer.cs",
+      "lineRange": [
+        1,
+        60
+      ]
+    },
+    {
+      "id": "step:implement-nodejs-service:install-npm-package",
+      "type": "step",
+      "name": "Install npm Package",
+      "summary": "Run npm install thrift to install the Node.js runtime library, or npm install @creditkarma/thrift-server-core for the TypeScript variant.",
+      "tags": [
+        "nodejs",
+        "npm",
+        "install"
+      ],
+      "complexity": "simple",
+      "filePath": "lib/nodejs/lib/thrift/transport.js",
+      "lineRange": [
+        1,
+        30
+      ]
+    },
+    {
+      "id": "step:implement-nodejs-service:generate-nodejs-stubs",
+      "type": "step",
+      "name": "Generate Node.js/TypeScript Stubs",
+      "summary": "Run thrift --gen js:node or --gen ts on the .thrift file to produce JavaScript or TypeScript client and processor modules.",
+      "tags": [
+        "nodejs",
+        "typescript",
+        "code-generation",
+        "stubs"
+      ],
+      "complexity": "simple",
+      "filePath": "compiler/cpp/src/thrift/generate/t_js_generator.cc",
+      "lineRange": [
+        1,
+        50
+      ]
+    },
+    {
+      "id": "step:implement-nodejs-service:connect-websocket",
+      "type": "step",
+      "name": "Connect via WebSocket or HTTP",
+      "summary": "Use the Node.js transport layer to create a WebSocket or HTTP-based connection, enabling browser or server-side clients to communicate with a Thrift service.",
+      "tags": [
+        "nodejs",
+        "websocket",
+        "http",
+        "transport"
+      ],
+      "complexity": "moderate",
+      "filePath": "lib/nodejs/lib/thrift/ws_transport.js",
+      "lineRange": [
+        1,
+        60
+      ]
+    },
+    {
+      "id": "step:run-cross-language-tests:define-test-schemas",
+      "type": "step",
+      "name": "Define Test IDL Schemas",
+      "summary": "ThriftTest.thrift and DebugProtoTest.thrift define a comprehensive set of service methods and types used to exercise all protocol and transport combinations across languages.",
+      "tags": [
+        "idl",
+        "test-schema",
+        "thrift-test"
+      ],
+      "complexity": "moderate",
+      "filePath": "test/ThriftTest.thrift",
+      "lineRange": [
+        1,
+        80
+      ]
+    },
+    {
+      "id": "step:run-cross-language-tests:generate-test-stubs",
+      "type": "step",
+      "name": "Generate Test Stubs for All Languages",
+      "summary": "The build system runs the Thrift compiler on test IDL files for each language to produce test client and server stubs used in integration tests.",
+      "tags": [
+        "code-generation",
+        "test-stubs",
+        "cross-language"
+      ],
+      "complexity": "moderate",
+      "filePath": "test/index.html",
+      "lineRange": [
+        1,
+        30
+      ]
+    },
+    {
+      "id": "step:run-cross-language-tests:start-server-under-test",
+      "type": "step",
+      "name": "Start Language-Specific Test Servers",
+      "summary": "The test runner launches test server processes (one per language) on configured ports and protocol/transport combinations, ready to accept integration test clients.",
+      "tags": [
+        "test-server",
+        "integration",
+        "server"
+      ],
+      "complexity": "moderate",
+      "filePath": "test/index.html",
+      "lineRange": [
+        30,
+        80
+      ]
+    },
+    {
+      "id": "step:run-cross-language-tests:run-client-assertions",
+      "type": "step",
+      "name": "Run Cross-Language Client Assertions",
+      "summary": "Test clients in each language connect to servers in every other language and execute service method calls, asserting correct return values and exception propagation.",
+      "tags": [
+        "client",
+        "assertions",
+        "cross-language",
+        "integration"
+      ],
+      "complexity": "complex",
+      "filePath": "test/ThriftTest.thrift",
+      "lineRange": [
+        80,
+        180
+      ]
+    },
+    {
+      "id": "step:run-cross-language-tests:report-results",
+      "type": "step",
+      "name": "Report Test Results",
+      "summary": "The test runner collects pass/fail results for each language-pair and protocol combination, filters known failures, and produces a summary report.",
+      "tags": [
+        "report",
+        "results",
+        "known-failures"
+      ],
+      "complexity": "simple",
+      "filePath": "test/index.html",
+      "lineRange": [
+        80,
+        120
+      ]
+    },
+    {
+      "id": "step:ci-pipeline-validation:trigger-on-pr",
+      "type": "step",
+      "name": "Trigger CI on Pull Request",
+      "summary": "GitHub Actions workflows are triggered by pull_request events targeting apache:master, initiating parallel build and test jobs across language matrix.",
+      "tags": [
+        "ci",
+        "github-actions",
+        "pull-request"
+      ],
+      "complexity": "simple",
+      "filePath": "appveyor.yml",
+      "lineRange": [
+        1,
+        30
+      ]
+    },
+    {
+      "id": "step:ci-pipeline-validation:build-in-docker",
+      "type": "step",
+      "name": "Build in Docker Environment",
+      "summary": "Each CI job pulls a language-specific Docker image with compiler toolchains, builds the Thrift compiler and runtime library, and runs unit tests in isolation.",
+      "tags": [
+        "docker",
+        "build",
+        "ci",
+        "isolation"
+      ],
+      "complexity": "moderate",
+      "filePath": "build/appveyor/MSYS2_functions.ps1",
+      "lineRange": [
+        1,
+        40
+      ]
+    },
+    {
+      "id": "step:ci-pipeline-validation:run-integration-tests",
+      "type": "step",
+      "name": "Run Integration Tests in CI",
+      "summary": "After successful unit test builds, CI runs the cross-language integration test suite and fails the pipeline if any unexpected test regressions are detected.",
+      "tags": [
+        "integration-test",
+        "ci",
+        "pipeline"
+      ],
+      "complexity": "moderate",
+      "filePath": "appveyor.yml",
+      "lineRange": [
+        30,
+        80
+      ]
+    },
+    {
+      "id": "step:ci-pipeline-validation:report-status",
+      "type": "step",
+      "name": "Report CI Status to PR",
+      "summary": "GitHub Actions posts build/test status checks back to the pull request, gating merge until all required checks pass.",
+      "tags": [
+        "status-check",
+        "github",
+        "merge-gate"
+      ],
+      "complexity": "simple",
+      "filePath": "appveyor.yml",
+      "lineRange": [
+        80,
+        110
+      ]
+    },
+    {
+      "id": "step:track-known-failures:identify-failing-combo",
+      "type": "step",
+      "name": "Identify Failing Language/Protocol Combination",
+      "summary": "When a cross-language test combination consistently fails, it is identified by language pair, protocol, and transport combination for tracking.",
+      "tags": [
+        "known-failures",
+        "tracking",
+        "test"
+      ],
+      "complexity": "simple",
+      "filePath": "test/ThriftTest.thrift",
+      "lineRange": [
+        1,
+        30
+      ]
+    },
+    {
+      "id": "step:track-known-failures:record-in-known-failures",
+      "type": "step",
+      "name": "Record in Known Failures File",
+      "summary": "The failing combination is added to the known_failures configuration so CI skips asserting it as a regression while still running the test.",
+      "tags": [
+        "known-failures",
+        "configuration",
+        "ci"
+      ],
+      "complexity": "simple",
+      "filePath": "test/index.html",
+      "lineRange": [
+        1,
+        20
+      ]
+    },
+    {
+      "id": "step:track-known-failures:file-jira-issue",
+      "type": "step",
+      "name": "File JIRA Issue for Resolution",
+      "summary": "A JIRA ticket in the THRIFT project is filed to track the known failure, linking it to the known_failures entry so it can be resolved and removed in a future PR.",
+      "tags": [
+        "jira",
+        "issue-tracking",
+        "known-failures"
+      ],
+      "complexity": "simple",
+      "filePath": "CONTRIBUTING.md",
+      "lineRange": [
+        1,
+        30
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "source": "domain:idl-definition-compilation",
+      "target": "flow:author-thrift-idl",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:idl-definition-compilation",
+      "target": "flow:compile-idl-to-target",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:idl-definition-compilation",
+      "target": "flow:audit-idl-compatibility",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:transport-networking",
+      "target": "flow:establish-transport-connection",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:transport-networking",
+      "target": "flow:send-receive-framed-data",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:transport-networking",
+      "target": "flow:configure-tls-transport",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:protocol-serialization",
+      "target": "flow:serialize-rpc-message",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:protocol-serialization",
+      "target": "flow:deserialize-rpc-response",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:protocol-serialization",
+      "target": "flow:select-wire-protocol",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:service-server-execution",
+      "target": "flow:start-thrift-server",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:service-server-execution",
+      "target": "flow:handle-rpc-call",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:service-server-execution",
+      "target": "flow:configure-nonblocking-server",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:cross-language-runtime",
+      "target": "flow:implement-go-service",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:cross-language-runtime",
+      "target": "flow:implement-java-service",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:cross-language-runtime",
+      "target": "flow:implement-python-service",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:cross-language-runtime",
+      "target": "flow:implement-dotnet-service",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:cross-language-runtime",
+      "target": "flow:implement-nodejs-service",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:testing-quality-assurance",
+      "target": "flow:run-cross-language-tests",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:testing-quality-assurance",
+      "target": "flow:ci-pipeline-validation",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:testing-quality-assurance",
+      "target": "flow:track-known-failures",
+      "type": "contains_flow",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:author-thrift-idl",
+      "target": "step:author-thrift-idl:define-namespaces",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.25
+    },
+    {
+      "source": "flow:author-thrift-idl",
+      "target": "step:author-thrift-idl:declare-types",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "flow:author-thrift-idl",
+      "target": "step:author-thrift-idl:define-services",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.75
+    },
+    {
+      "source": "flow:author-thrift-idl",
+      "target": "step:author-thrift-idl:define-constants",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:compile-idl-to-target",
+      "target": "step:compile-idl-to-target:parse-cli-args",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "source": "flow:compile-idl-to-target",
+      "target": "step:compile-idl-to-target:lex-parse-idl",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.4
+    },
+    {
+      "source": "flow:compile-idl-to-target",
+      "target": "step:compile-idl-to-target:validate-ast",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "flow:compile-idl-to-target",
+      "target": "step:compile-idl-to-target:lookup-generator",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "flow:compile-idl-to-target",
+      "target": "step:compile-idl-to-target:emit-target-code",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:audit-idl-compatibility",
+      "target": "step:audit-idl-compatibility:load-both-schemas",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.33
+    },
+    {
+      "source": "flow:audit-idl-compatibility",
+      "target": "step:audit-idl-compatibility:compare-type-changes",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.66
+    },
+    {
+      "source": "flow:audit-idl-compatibility",
+      "target": "step:audit-idl-compatibility:report-breaking-changes",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:establish-transport-connection",
+      "target": "step:establish-transport-connection:instantiate-socket",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.33
+    },
+    {
+      "source": "flow:establish-transport-connection",
+      "target": "step:establish-transport-connection:wrap-with-decorators",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.66
+    },
+    {
+      "source": "flow:establish-transport-connection",
+      "target": "step:establish-transport-connection:open-connection",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:send-receive-framed-data",
+      "target": "step:send-receive-framed-data:write-frame-header",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.33
+    },
+    {
+      "source": "flow:send-receive-framed-data",
+      "target": "step:send-receive-framed-data:flush-to-wire",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.66
+    },
+    {
+      "source": "flow:send-receive-framed-data",
+      "target": "step:send-receive-framed-data:read-response-frame",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:configure-tls-transport",
+      "target": "step:configure-tls-transport:load-certificates",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.33
+    },
+    {
+      "source": "flow:configure-tls-transport",
+      "target": "step:configure-tls-transport:set-cipher-policy",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.66
+    },
+    {
+      "source": "flow:configure-tls-transport",
+      "target": "step:configure-tls-transport:perform-handshake",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:serialize-rpc-message",
+      "target": "step:serialize-rpc-message:write-message-begin",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.33
+    },
+    {
+      "source": "flow:serialize-rpc-message",
+      "target": "step:serialize-rpc-message:write-argument-struct",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.66
+    },
+    {
+      "source": "flow:serialize-rpc-message",
+      "target": "step:serialize-rpc-message:flush-protocol",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:deserialize-rpc-response",
+      "target": "step:deserialize-rpc-response:read-message-begin",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.33
+    },
+    {
+      "source": "flow:deserialize-rpc-response",
+      "target": "step:deserialize-rpc-response:read-result-struct",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.66
+    },
+    {
+      "source": "flow:deserialize-rpc-response",
+      "target": "step:deserialize-rpc-response:throw-or-return",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:select-wire-protocol",
+      "target": "step:select-wire-protocol:choose-protocol-factory",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.33
+    },
+    {
+      "source": "flow:select-wire-protocol",
+      "target": "step:select-wire-protocol:supply-to-server",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.66
+    },
+    {
+      "source": "flow:select-wire-protocol",
+      "target": "step:select-wire-protocol:supply-to-client",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:start-thrift-server",
+      "target": "step:start-thrift-server:assemble-server-components",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.33
+    },
+    {
+      "source": "flow:start-thrift-server",
+      "target": "step:start-thrift-server:configure-concurrency",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.66
+    },
+    {
+      "source": "flow:start-thrift-server",
+      "target": "step:start-thrift-server:call-serve",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:handle-rpc-call",
+      "target": "step:handle-rpc-call:accept-connection",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.25
+    },
+    {
+      "source": "flow:handle-rpc-call",
+      "target": "step:handle-rpc-call:read-decode-request",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "flow:handle-rpc-call",
+      "target": "step:handle-rpc-call:dispatch-to-handler",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.75
+    },
+    {
+      "source": "flow:handle-rpc-call",
+      "target": "step:handle-rpc-call:encode-send-response",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:configure-nonblocking-server",
+      "target": "step:configure-nonblocking-server:setup-libevent",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.33
+    },
+    {
+      "source": "flow:configure-nonblocking-server",
+      "target": "step:configure-nonblocking-server:configure-thread-manager",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.66
+    },
+    {
+      "source": "flow:configure-nonblocking-server",
+      "target": "step:configure-nonblocking-server:start-io-threads",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:implement-go-service",
+      "target": "step:implement-go-service:add-go-module-dep",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.33
+    },
+    {
+      "source": "flow:implement-go-service",
+      "target": "step:implement-go-service:generate-go-stubs",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.66
+    },
+    {
+      "source": "flow:implement-go-service",
+      "target": "step:implement-go-service:create-go-client-server",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:implement-java-service",
+      "target": "step:implement-java-service:add-maven-dep",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.33
+    },
+    {
+      "source": "flow:implement-java-service",
+      "target": "step:implement-java-service:generate-java-stubs",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.66
+    },
+    {
+      "source": "flow:implement-java-service",
+      "target": "step:implement-java-service:build-java-server",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:implement-python-service",
+      "target": "step:implement-python-service:install-pip-package",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.33
+    },
+    {
+      "source": "flow:implement-python-service",
+      "target": "step:implement-python-service:generate-python-stubs",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.66
+    },
+    {
+      "source": "flow:implement-python-service",
+      "target": "step:implement-python-service:run-python-server",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:implement-dotnet-service",
+      "target": "step:implement-dotnet-service:add-nuget-dep",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.33
+    },
+    {
+      "source": "flow:implement-dotnet-service",
+      "target": "step:implement-dotnet-service:generate-csharp-stubs",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.66
+    },
+    {
+      "source": "flow:implement-dotnet-service",
+      "target": "step:implement-dotnet-service:host-async-server",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:implement-nodejs-service",
+      "target": "step:implement-nodejs-service:install-npm-package",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.33
+    },
+    {
+      "source": "flow:implement-nodejs-service",
+      "target": "step:implement-nodejs-service:generate-nodejs-stubs",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.66
+    },
+    {
+      "source": "flow:implement-nodejs-service",
+      "target": "step:implement-nodejs-service:connect-websocket",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:run-cross-language-tests",
+      "target": "step:run-cross-language-tests:define-test-schemas",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.2
+    },
+    {
+      "source": "flow:run-cross-language-tests",
+      "target": "step:run-cross-language-tests:generate-test-stubs",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.4
+    },
+    {
+      "source": "flow:run-cross-language-tests",
+      "target": "step:run-cross-language-tests:start-server-under-test",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.6
+    },
+    {
+      "source": "flow:run-cross-language-tests",
+      "target": "step:run-cross-language-tests:run-client-assertions",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.8
+    },
+    {
+      "source": "flow:run-cross-language-tests",
+      "target": "step:run-cross-language-tests:report-results",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:ci-pipeline-validation",
+      "target": "step:ci-pipeline-validation:trigger-on-pr",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.25
+    },
+    {
+      "source": "flow:ci-pipeline-validation",
+      "target": "step:ci-pipeline-validation:build-in-docker",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.5
+    },
+    {
+      "source": "flow:ci-pipeline-validation",
+      "target": "step:ci-pipeline-validation:run-integration-tests",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.75
+    },
+    {
+      "source": "flow:ci-pipeline-validation",
+      "target": "step:ci-pipeline-validation:report-status",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "flow:track-known-failures",
+      "target": "step:track-known-failures:identify-failing-combo",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.33
+    },
+    {
+      "source": "flow:track-known-failures",
+      "target": "step:track-known-failures:record-in-known-failures",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 0.66
+    },
+    {
+      "source": "flow:track-known-failures",
+      "target": "step:track-known-failures:file-jira-issue",
+      "type": "flow_step",
+      "direction": "forward",
+      "weight": 1
+    },
+    {
+      "source": "domain:idl-definition-compilation",
+      "target": "domain:transport-networking",
+      "type": "cross_domain",
+      "direction": "forward",
+      "description": "Generated stubs use transport APIs to send/receive encoded RPC messages",
+      "weight": 0.8
+    },
+    {
+      "source": "domain:idl-definition-compilation",
+      "target": "domain:protocol-serialization",
+      "type": "cross_domain",
+      "direction": "forward",
+      "description": "Generated read()/write() methods call protocol encode/decode primitives",
+      "weight": 0.8
+    },
+    {
+      "source": "domain:idl-definition-compilation",
+      "target": "domain:service-server-execution",
+      "type": "cross_domain",
+      "direction": "forward",
+      "description": "Generated TProcessor subclasses are the primary input to server execution",
+      "weight": 0.9
+    },
+    {
+      "source": "domain:idl-definition-compilation",
+      "target": "domain:cross-language-runtime",
+      "type": "cross_domain",
+      "direction": "forward",
+      "description": "Each language runtime consumes stubs generated from IDL for client/server construction",
+      "weight": 0.9
+    },
+    {
+      "source": "domain:idl-definition-compilation",
+      "target": "domain:testing-quality-assurance",
+      "type": "cross_domain",
+      "direction": "forward",
+      "description": "ThriftTest.thrift and DebugProtoTest.thrift are the IDL schemas driving all integration tests",
+      "weight": 0.7
+    },
+    {
+      "source": "domain:transport-networking",
+      "target": "domain:protocol-serialization",
+      "type": "cross_domain",
+      "direction": "forward",
+      "description": "Protocol layer reads/writes bytes through the transport abstraction",
+      "weight": 0.9
+    },
+    {
+      "source": "domain:protocol-serialization",
+      "target": "domain:service-server-execution",
+      "type": "cross_domain",
+      "direction": "forward",
+      "description": "Server processor decodes requests and encodes responses through the protocol layer",
+      "weight": 0.9
+    },
+    {
+      "source": "domain:cross-language-runtime",
+      "target": "domain:transport-networking",
+      "type": "cross_domain",
+      "direction": "forward",
+      "description": "Each language runtime implements the transport abstraction for its ecosystem",
+      "weight": 0.8
+    },
+    {
+      "source": "domain:cross-language-runtime",
+      "target": "domain:protocol-serialization",
+      "type": "cross_domain",
+      "direction": "forward",
+      "description": "Each language runtime implements Binary, Compact, and JSON protocols",
+      "weight": 0.8
+    },
+    {
+      "source": "domain:cross-language-runtime",
+      "target": "domain:service-server-execution",
+      "type": "cross_domain",
+      "direction": "forward",
+      "description": "Each language runtime provides server implementations (simple, threaded, nonblocking)",
+      "weight": 0.7
+    },
+    {
+      "source": "domain:testing-quality-assurance",
+      "target": "domain:cross-language-runtime",
+      "type": "cross_domain",
+      "direction": "forward",
+      "description": "Integration tests exercise all language runtime implementations for cross-language interoperability",
+      "weight": 0.8
+    }
+  ],
+  "layers": [],
+  "tour": []
+}

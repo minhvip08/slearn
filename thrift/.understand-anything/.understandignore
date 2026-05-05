@@ -1,0 +1,75 @@
+﻿# .understandignore - patterns for files/dirs to exclude from analysis
+# Syntax: same as .gitignore (globs, # comments, ! negation, trailing / for dirs)
+# Built-in defaults (always excluded unless negated):
+#   node_modules/, .git/, dist/, build/, obj/, *.lock, *.min.js, etc.
+#
+# --- Exclude compiled/binary patterns ---
+*.la
+*.lo
+*.o
+*.deps
+*.dirstamp
+*.libs
+*.pyc
+*.jar
+*.exe
+*.dll
+*.swp
+*.hi
+*.so
+*.dylib
+gen-*
+Makefile.in
+aclocal.m4
+acinclude.m4
+autom4te.cache/
+cmake-*/
+
+# --- Exclude test directories (keep test/*.thrift for schema understanding) ---
+test/c_glib/
+test/cpp/
+test/csharp/
+test/dart/
+test/erl/
+test/go/
+test/haxe/
+test/java/
+test/js/
+test/lua/
+test/netstd/
+test/perl/
+test/php/
+test/py/
+test/rb/
+test/rs/
+test/swift/
+test/nodejs/
+test/ocaml/
+test/features/
+
+# --- Exclude tutorial (non-essential for architecture) ---
+tutorial/
+
+# --- Exclude contrib (third-party/community scripts) ---
+contrib/
+
+# --- Exclude debian packaging ---
+debian/
+
+# --- Exclude most individual language lib test dirs ---
+lib/*/test/
+lib/*/tests/
+lib/*/spec/
+
+# --- Exclude lock files and generated ---
+package-lock.json
+*.lock
+*.generated.*
+*.min.js
+*.min.css
+*.map
+
+# --- Test file patterns ---
+*.test.*
+*.spec.*
+*.snap
